@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Timetable Preferences - University Scheduler</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --primary-color: #4a90e2;
+        --secondary-color: #7b68ee;
+        --success-color: #28a745;
+        --warning-color: #ffc107;
+        --danger-color: #dc3545;
+        --light-bg: #f8f9fa;
+        --border-radius: 15px;
+      }
+
+      body {
+        background: linear-gradient(135deg, var(--light-bg) 0%, #e9ecef 100%);
+        font-family: "Inter", "Segoe UI", sans-serif;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+        background: white;
+        padding: 30px;
+        border-radius: var(--border-radius);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .header h1 {
+        color: var(--primary-color);
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+
+      .header p {
+        color: #6c757d;
+        font-size: 1.1rem;
+        margin-bottom: 0;
+      }
+
+      .preferences-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 30px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .preference-section h3 {
+        color: var(--primary-color);
+        font-weight: 600;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 10px;
+      }
+
+      .form-check {
+        margin-bottom: 15px;
+      }
+
+      .form-check-input:checked {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+
+      .time-range-selector {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color),
+          var(--secondary-color)
+        );
+        border: none;
+        border-radius: 10px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
+      }
+
+      .btn-secondary {
+        border-radius: 10px;
+        padding: 12px 30px;
+        font-weight: 600;
+      }
+
+      .preference-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid var(--primary-color);
+      }
+
+      .selected-courses-summary {
+        background: #e8f4fd;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #b3d9ff;
+      }
+
+      .badge {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+        border-radius: 8px;
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+        padding: 40px;
+      }
+
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <h1><i class="fas fa-robot"></i> AI Timetable Generator</h1>
+        <p>
+          Let our AI help you create the perfect timetable based on your
+          preferences
+        </p>
+      </div>
+
+      <!-- Selected Courses Summary -->
+      <div class="selected-courses-summary">
+        <h5>
+          <i class="fas fa-check-circle text-success"></i> Selected Courses
+        </h5>
+        <p class="mb-0">
+          You have selected {{ total_courses }} courses. The AI will generate
+          optimal timetables based on your preferences below.
+        </p>
+      </div>
+
+      <!-- AI Preferences Form -->
+      <div class="preferences-card">
+        <form id="aiPreferencesForm">
+          <!-- Time Preferences -->
+          <div class="preference-section">
+            <h3><i class="fas fa-clock"></i> Time Preferences</h3>
+
+            <div class="preference-item">
+              <h6>Preferred Time of Day</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  value="morning"
+                  id="timeMorning"
+                  name="preferred_times"
+                />
+                <label class="form-check-label" for="timeMorning">
+                  Morning (8:00 AM - 12:00 PM)
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  value="afternoon"
+                  id="timeAfternoon"
+                  name="preferred_times"
+                />
+                <label class="form-check-label" for="timeAfternoon">
+                  Afternoon (12:00 PM - 5:00 PM)
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  value="evening"
+                  id="timeEvening"
+                  name="preferred_times"
+                />
+                <label class="form-check-label" for="timeEvening">
+                  Evening (5:00 PM - 9:00 PM)
+                </label>
+              </div>
+            </div>
+
+            <div class="preference-item">
+              <h6>Custom Time Range</h6>
+              <div class="time-range-selector">
+                <label>Start:</label>
+                <input
+                  type="time"
+                  class="form-control"
+                  id="customStartTime"
+                  style="width: 150px"
+                />
+                <label>End:</label>
+                <input
+                  type="time"
+                  class="form-control"
+                  id="customEndTime"
+                  style="width: 150px"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Day Preferences -->
+          <div class="preference-section">
+            <h3><i class="fas fa-calendar-week"></i> Day Preferences</h3>
+
+            <div class="preference-item">
+              <h6>Preferred Days Off</h6>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      value="monday"
+                      id="dayMonday"
+                      name="days_off"
+                    />
+                    <label class="form-check-label" for="dayMonday"
+                      >Monday</label
+                    >
+                  </div>
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      value="tuesday"
+                      id="dayTuesday"
+                      name="days_off"
+                    />
+                    <label class="form-check-label" for="dayTuesday"
+                      >Tuesday</label
+                    >
+                  </div>
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      value="wednesday"
+                      id="dayWednesday"
+                      name="days_off"
+                    />
+                    <label class="form-check-label" for="dayWednesday"
+                      >Wednesday</label
+                    >
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      value="thursday"
+                      id="dayThursday"
+                      name="days_off"
+                    />
+                    <label class="form-check-label" for="dayThursday"
+                      >Thursday</label
+                    >
+                  </div>
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      value="friday"
+                      id="dayFriday"
+                      name="days_off"
+                    />
+                    <label class="form-check-label" for="dayFriday"
+                      >Friday</label
+                    >
+                  </div>
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      value="saturday"
+                      id="daySaturday"
+                      name="days_off"
+                    />
+                    <label class="form-check-label" for="daySaturday"
+                      >Saturday</label
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="preference-item">
+              <h6>Schedule Density</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-radio"
+                  type="radio"
+                  name="schedule_density"
+                  id="densityCompact"
+                  value="compact"
+                />
+                <label class="form-check-label" for="densityCompact">
+                  Compact - Pack classes together to minimize gaps
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-radio"
+                  type="radio"
+                  name="schedule_density"
+                  id="densitySpread"
+                  value="spread"
+                />
+                <label class="form-check-label" for="densitySpread">
+                  Spread Out - Distribute classes throughout the week
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-radio"
+                  type="radio"
+                  name="schedule_density"
+                  id="densityBalanced"
+                  value="balanced"
+                  checked
+                />
+                <label class="form-check-label" for="densityBalanced">
+                  Balanced - Mix of compact and spread out
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gap Preferences -->
+          <div class="preference-section">
+            <h3><i class="fas fa-pause"></i> Break Preferences</h3>
+
+            <div class="preference-item">
+              <h6>Preferred Gap Between Classes</h6>
+              <select class="form-select" id="gapPreference">
+                <option value="minimal">
+                  Minimal gaps (back-to-back classes)
+                </option>
+                <option value="short" selected>
+                  Short breaks (15-30 minutes)
+                </option>
+                <option value="medium">Medium breaks (30-60 minutes)</option>
+                <option value="long">Long breaks (1+ hours)</option>
+              </select>
+            </div>
+
+            <div class="preference-item">
+              <h6>Lunch Break</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="lunchBreak"
+                  checked
+                />
+                <label class="form-check-label" for="lunchBreak">
+                  Ensure lunch break (12:00 PM - 1:00 PM)
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Priority Preferences -->
+          <div class="preference-section">
+            <h3><i class="fas fa-star"></i> Priority Settings</h3>
+
+            <div class="preference-item">
+              <h6>Most Important Factor</h6>
+              <select class="form-select" id="priorityFactor">
+                <option value="time">Time preferences</option>
+                <option value="gaps">Minimize gaps between classes</option>
+                <option value="days">Preferred days off</option>
+                <option value="instructor">Preferred instructors</option>
+                <option value="balance" selected>Overall balance</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Early/Late Class Preferences -->
+          <div class="preference-section">
+            <h3><i class="fas fa-sun"></i> Early/Late Class Preferences</h3>
+
+            <div class="preference-item">
+              <h6>Morning Class Preference</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="avoidEarlyMorning"
+                />
+                <label class="form-check-label" for="avoidEarlyMorning">
+                  Avoid early morning classes (before 9:00 AM)
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="avoidLateEvening"
+                />
+                <label class="form-check-label" for="avoidLateEvening">
+                  Avoid late evening classes (after 6:00 PM)
+                </label>
+              </div>
+            </div>
+
+            <div class="preference-item">
+              <h6>Weekly Schedule Pattern</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="consistentTimes"
+                />
+                <label class="form-check-label" for="consistentTimes">
+                  Prefer consistent start/end times each day
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="earlyFriday"
+                />
+                <label class="form-check-label" for="earlyFriday">
+                  Finish early on Fridays
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gap Management -->
+          <div class="preference-section">
+            <h3><i class="fas fa-clock"></i> Gap Management</h3>
+
+            <div class="preference-item">
+              <h6>Long Gap Preference</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="avoidLongGaps"
+                  checked
+                />
+                <label class="form-check-label" for="avoidLongGaps">
+                  Minimize long gaps (2+ hours between classes)
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="strategicBreaks"
+                />
+                <label class="form-check-label" for="strategicBreaks">
+                  Prefer strategic 1-hour breaks for study/meals
+                </label>
+              </div>
+            </div>
+
+            <div class="preference-item">
+              <h6>Campus Movement</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="clusterByLocation"
+                />
+                <label class="form-check-label" for="clusterByLocation">
+                  Cluster classes by building/location when possible
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Personal & Lifestyle -->
+          <div class="preference-section">
+            <h3><i class="fas fa-user"></i> Personal & Lifestyle</h3>
+
+            <div class="preference-item">
+              <h6>Work & Commitments</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="accommodateWork"
+                />
+                <label class="form-check-label" for="accommodateWork">
+                  I have a part-time job that needs accommodation
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="extracurriculars"
+                />
+                <label class="form-check-label" for="extracurriculars">
+                  I have regular extracurricular activities
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="minimizeCommute"
+                />
+                <label class="form-check-label" for="minimizeCommute">
+                  Minimize days on campus (I have a long commute)
+                </label>
+              </div>
+            </div>
+
+            <div class="preference-item">
+              <h6>Well-being Preferences</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="fitnessTime"
+                />
+                <label class="form-check-label" for="fitnessTime">
+                  Leave time for fitness/gym sessions
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="studyTime"
+                />
+                <label class="form-check-label" for="studyTime">
+                  Ensure dedicated study blocks between classes
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="appointmentTime"
+                />
+                <label class="form-check-label" for="appointmentTime">
+                  Keep time free for appointments/errands
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Course & Instructor Preferences -->
+          <div class="preference-section">
+            <h3>
+              <i class="fas fa-chalkboard-teacher"></i> Course & Instructor
+            </h3>
+
+            <div class="preference-item">
+              <h6>Course Clustering</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="sameDayCourses"
+                />
+                <label class="form-check-label" for="sameDayCourses">
+                  Group all sessions for the same course on the same day
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="backToBackCourses"
+                />
+                <label class="form-check-label" for="backToBackCourses">
+                  Prefer back-to-back classes to minimize campus time
+                </label>
+              </div>
+            </div>
+
+            <div class="preference-item">
+              <h6>Workload Distribution</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="evenWorkload"
+                  checked
+                />
+                <label class="form-check-label" for="evenWorkload">
+                  Distribute workload evenly across the week
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="avoidHeavyDays"
+                />
+                <label class="form-check-label" for="avoidHeavyDays">
+                  Avoid days with too many classes
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sleep & Energy Management -->
+          <div class="preference-section">
+            <h3><i class="fas fa-bed"></i> Sleep & Energy</h3>
+
+            <div class="preference-item">
+              <h6>Sleep Schedule Protection</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="consistentSleep"
+                />
+                <label class="form-check-label" for="consistentSleep">
+                  Maintain consistent sleep schedule (avoid mix of very early
+                  and very late)
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="stressReduction"
+                  checked
+                />
+                <label class="form-check-label" for="stressReduction">
+                  Prioritize balanced, manageable schedule over efficiency
+                </label>
+              </div>
+            </div>
+
+            <div class="preference-item">
+              <h6>Energy Level Optimization</h6>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="difficultMorning"
+                />
+                <label class="form-check-label" for="difficultMorning">
+                  Schedule difficult subjects in the morning when I'm fresh
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="lightAfternoon"
+                />
+                <label class="form-check-label" for="lightAfternoon">
+                  Keep afternoons lighter for better focus
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="text-center mb-4">
+        <button type="button" class="btn btn-secondary me-3" onclick="goBack()">
+          <i class="fas fa-arrow-left"></i> Back to Course Selection
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-lg"
+          onclick="generateAITimetable()"
+        >
+          <i class="fas fa-magic"></i> Generate AI Timetable
+        </button>
+      </div>
+
+      <!-- Loading Section -->
+      <div id="loading-section" class="loading">
+        <div class="spinner"></div>
+        <h4>AI is analyzing your preferences...</h4>
+        <p class="text-muted">Creating the perfect timetable for you</p>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      function goBack() {
+        window.history.back();
+      }
+      async function generateAITimetable() {
+        // Show loading
+        document.getElementById("loading-section").style.display = "block";
+
+        // Collect preferences
+        const preferences = collectPreferences();
+
+        try {
+          // Send preferences to AI endpoint
+          const response = await fetch("/ai-preferences", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(preferences),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Store the AI-generated combinations
+            localStorage.setItem(
+              "aiCombinations",
+              JSON.stringify(result.combinations)
+            );
+            localStorage.setItem("aiPreferences", JSON.stringify(preferences));
+
+            // Redirect back to main page with AI results
+            alert(
+              `${result.message}\n\nYou will now be redirected to view your optimized timetables.`
+            );
+            window.location.href = "/?ai=true";
+          } else {
+            throw new Error(result.error || "Failed to generate AI timetable");
+          }
+        } catch (error) {
+          document.getElementById("loading-section").style.display = "none";
+          alert("Error generating AI timetable: " + error.message);
+        }
+      }
+      function collectPreferences() {
+        const preferences = {
+          // Time preferences
+          preferred_times: [],
+          days_off: [],
+          schedule_density: document.querySelector(
+            'input[name="schedule_density"]:checked'
+          )?.value,
+          gap_preference: document.getElementById("gapPreference").value,
+          lunch_break: document.getElementById("lunchBreak").checked,
+          priority_factor: document.getElementById("priorityFactor").value,
+          custom_time_range: {
+            start: document.getElementById("customStartTime").value,
+            end: document.getElementById("customEndTime").value,
+          },
+
+          // Early/Late class preferences
+          avoid_early_morning:
+            document.getElementById("avoidEarlyMorning")?.checked || false,
+          avoid_late_evening:
+            document.getElementById("avoidLateEvening")?.checked || false,
+          golden_hours: document.getElementById("goldenHours")?.value || "none",
+          consistent_times:
+            document.getElementById("consistentTimes")?.checked || false,
+          early_friday:
+            document.getElementById("earlyFriday")?.checked || false,
+
+          // Gap management
+          avoid_long_gaps:
+            document.getElementById("avoidLongGaps")?.checked || false,
+          strategic_breaks:
+            document.getElementById("strategicBreaks")?.checked || false,
+          cluster_by_location:
+            document.getElementById("clusterByLocation")?.checked || false,
+
+          // Personal & lifestyle
+          accommodate_work:
+            document.getElementById("accommodateWork")?.checked || false,
+          extracurriculars:
+            document.getElementById("extracurriculars")?.checked || false,
+          minimize_commute:
+            document.getElementById("minimizeCommute")?.checked || false,
+          fitness_time:
+            document.getElementById("fitnessTime")?.checked || false,
+          study_time: document.getElementById("studyTime")?.checked || false,
+          appointment_time:
+            document.getElementById("appointmentTime")?.checked || false,
+
+          // Course & instructor preferences
+          same_day_courses:
+            document.getElementById("sameDayCourses")?.checked || false,
+          back_to_back_courses:
+            document.getElementById("backToBackCourses")?.checked || false,
+          even_workload:
+            document.getElementById("evenWorkload")?.checked || false,
+          avoid_heavy_days:
+            document.getElementById("avoidHeavyDays")?.checked || false,
+
+          // Sleep & energy management
+          consistent_sleep:
+            document.getElementById("consistentSleep")?.checked || false,
+          stress_reduction:
+            document.getElementById("stressReduction")?.checked || false,
+          difficult_morning:
+            document.getElementById("difficultMorning")?.checked || false,
+          light_afternoon:
+            document.getElementById("lightAfternoon")?.checked || false,
+        };
+
+        // Collect preferred times
+        document
+          .querySelectorAll('input[name="preferred_times"]:checked')
+          .forEach((checkbox) => {
+            preferences.preferred_times.push(checkbox.value);
+          });
+
+        // Collect days off
+        document
+          .querySelectorAll('input[name="days_off"]:checked')
+          .forEach((checkbox) => {
+            preferences.days_off.push(checkbox.value);
+          });
+
+        return preferences;
+      }
+    </script>
+  </body>
+</html>

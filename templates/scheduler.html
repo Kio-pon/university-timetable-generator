@@ -1,0 +1,2215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🎓 University Timetable Generator</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <!-- FullCalendar.js CSS and JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <style>
+      :root {
+        --primary-color: #2563eb;
+        --secondary-color: #64748b;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --danger-color: #ef4444;
+        --light-bg: #f8fafc;
+        --dark-text: #1e293b;
+      }
+
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .main-container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        margin: 20px;
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+      }
+
+      .header p {
+        margin: 10px 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+      }
+
+      .step-indicator {
+        background: var(--light-bg);
+        padding: 20px 30px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .step {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 30px;
+        padding: 10px 15px;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .step.active {
+        background: var(--primary-color);
+        color: white;
+        transform: scale(1.05);
+      }
+
+      .step.completed {
+        background: var(--success-color);
+        color: white;
+      }
+
+      .step:not(.active):not(.completed) {
+        background: #e2e8f0;
+        color: var(--secondary-color);
+      }
+
+      .content-area {
+        padding: 30px;
+      }
+
+      .section-card {
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        transition: all 0.3s ease;
+      }
+
+      .section-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.1);
+      }
+
+      .section-card h3 {
+        color: var(--dark-text);
+        margin-bottom: 20px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .file-upload-area {
+        border: 3px dashed #cbd5e1;
+        border-radius: 15px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: var(--light-bg);
+      }
+
+      .file-upload-area:hover {
+        border-color: var(--primary-color);
+        background: #eff6ff;
+      }
+
+      .file-upload-area.dragover {
+        border-color: var(--success-color);
+        background: #f0fdf4;
+      }
+
+      .course-item {
+        background: var(--light-bg);
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .course-item:hover {
+        background: #eff6ff;
+        border-color: var(--primary-color);
+      }
+
+      .course-item.selected {
+        background: #dbeafe;
+        border-color: var(--primary-color);
+        border-width: 2px;
+      }
+
+      .section-checkbox {
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 8px;
+        transition: all 0.3s ease;
+      }
+
+      .section-checkbox:hover {
+        border-color: var(--primary-color);
+      }
+
+      .section-checkbox.selected {
+        border-color: var(--success-color);
+        background: #f0fdf4;
+      }
+
+      .timetable-card {
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .timetable-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.1);
+      }
+
+      .timetable-header {
+        background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+        color: white;
+        padding: 20px;
+        font-weight: 600;
+      }
+
+      .timetable-grid {
+        display: grid;
+        grid-template-columns: 120px repeat(7, 1fr);
+        gap: 1px;
+        background: #e2e8f0;
+        margin: 20px;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .time-slot,
+      .day-header,
+      .course-slot {
+        background: white;
+        padding: 12px 8px;
+        text-align: center;
+        font-size: 0.9rem;
+      }
+
+      .day-header {
+        background: var(--primary-color);
+        color: white;
+        font-weight: 600;
+      }
+
+      .time-slot {
+        background: var(--light-bg);
+        font-weight: 600;
+        color: var(--secondary-color);
+      }
+
+      .course-slot {
+        background: #dbeafe;
+        border-left: 4px solid var(--primary-color);
+        font-size: 0.8rem;
+        line-height: 1.3;
+      }
+
+      .course-slot.empty {
+        background: white;
+        border: none;
+      }
+
+      .btn {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 12px 24px;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary {
+        background: var(--primary-color);
+        border: none;
+      }
+
+      .btn-primary:hover {
+        background: #1d4ed8;
+        transform: translateY(-2px);
+      }
+
+      .btn-success {
+        background: var(--success-color);
+        border: none;
+      }
+
+      .btn-warning {
+        background: var(--warning-color);
+        border: none;
+      }
+
+      .btn-danger {
+        background: var(--danger-color);
+        border: none;
+      }
+
+      .alert {
+        border-radius: 12px;
+        border: none;
+        font-weight: 500;
+      }
+
+      .selected-courses-summary {
+        background: var(--light-bg);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .selected-course-item {
+        background: white;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-left: 4px solid var(--success-color);
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+        padding: 40px;
+      }
+
+      .spinner {
+        border: 4px solid #f3f4f6;
+        border-top: 4px solid var(--primary-color);
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .fade-in {
+        animation: fadeIn 0.5s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .search-box {
+        position: relative;
+        margin-bottom: 20px;
+      }
+
+      .search-box input {
+        padding-left: 45px;
+        border-radius: 25px;
+        border: 2px solid #e2e8f0;
+        transition: all 0.3s ease;
+      }
+
+      .search-box input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .search-box i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--secondary-color);
+      }
+
+      @media (max-width: 768px) {
+        .main-container {
+          margin: 10px;
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+
+        .step {
+          margin-right: 15px;
+          margin-bottom: 10px;
+        }
+
+        .timetable-grid {
+          grid-template-columns: 80px repeat(7, 1fr);
+          font-size: 0.8rem;
+        }
+      }
+
+      /* FullCalendar Modern Premium Styling */
+      .calendar-container {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        margin: 20px 0;
+        border: 1px solid #e2e8f0;
+      }
+
+      .combination-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .combination-tab {
+        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        border: 2px solid #e2e8f0;
+        color: #475569;
+        padding: 12px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        font-size: 14px;
+      }
+
+      .combination-tab:hover {
+        background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+        border-color: #94a3b8;
+        transform: translateY(-2px);
+      }
+
+      .combination-tab.active {
+        background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+        border-color: var(--primary-color);
+        color: white;
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+      }
+
+      .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f1f5f9;
+      }
+
+      .calendar-title {
+        color: var(--primary-color);
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .calendar-stats {
+        display: flex;
+        gap: 20px;
+        font-size: 14px;
+        color: #64748b;
+      }
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      /* Custom FullCalendar Styling for Premium Look */
+      .fc {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .fc-toolbar {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+      }
+
+      .fc-toolbar-title {
+        color: var(--primary-color) !important;
+        font-weight: 700 !important;
+        font-size: 1.4rem !important;
+      }
+
+      .fc-button {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color),
+          #3b82f6
+        ) !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+      }
+
+      .fc-button:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3) !important;
+      }
+
+      .fc-button:focus {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+      }
+
+      .fc-button-active {
+        background: linear-gradient(135deg, #1e40af, #1d4ed8) !important;
+      }
+
+      .fc-daygrid-day-frame,
+      .fc-timegrid-slot {
+        border-color: #f1f5f9 !important;
+      }
+
+      .fc-col-header {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important;
+        border-color: #e2e8f0 !important;
+      }
+
+      .fc-col-header-cell {
+        padding: 12px !important;
+        font-weight: 600 !important;
+        color: var(--primary-color) !important;
+      }
+
+      .fc-timegrid-slot-label {
+        color: #64748b !important;
+        font-weight: 500 !important;
+        font-size: 12px !important;
+      }
+
+      .fc-event {
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+      }
+
+      .fc-event:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+      }
+
+      .fc-event-title {
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+      }
+
+      .fc-timegrid-slot {
+        height: 35px !important;
+      }
+
+      .fc-timegrid-slot-minor {
+        border-top: 1px dashed #e2e8f0 !important;
+      }
+
+      /* Course Color Themes */
+      .event-core {
+        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+      }
+      .event-cs {
+        background: linear-gradient(135deg, #10b981, #047857) !important;
+      }
+      .event-ee {
+        background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+      }
+      .event-phy {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+      }
+      .event-math {
+        background: linear-gradient(135deg, #06b6d4, #0891b2) !important;
+      }
+      .event-mus {
+        background: linear-gradient(135deg, #84cc16, #65a30d) !important;
+      }
+      .event-bio {
+        background: linear-gradient(135deg, #ec4899, #db2777) !important;
+      }
+      .event-com {
+        background: linear-gradient(135deg, #f97316, #ea580c) !important;
+      }
+      .event-sdp {
+        background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+      }
+      .event-lang {
+        background: linear-gradient(135deg, #a855f7, #9333ea) !important;
+      }
+      .event-default {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color),
+          #3b82f6
+        ) !important;
+      }
+
+      .no-results {
+        text-align: center;
+        padding: 40px;
+        color: #64748b;
+      }
+
+      .no-results i {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        color: #cbd5e1;
+      }
+
+      /* ===============================
+         FullCalendar Modern Styles
+         =============================== */
+
+      .calendar-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f1f5f9;
+      }
+
+      .calendar-title {
+        color: var(--primary-color);
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+
+      .calendar-stats {
+        display: flex;
+        gap: 20px;
+      }
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--secondary-color);
+        font-size: 0.9rem;
+      }
+
+      .stat-item i {
+        color: var(--primary-color);
+      }
+
+      .combination-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .combination-tab {
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        color: var(--secondary-color);
+        padding: 12px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .combination-tab:hover {
+        background: #e2e8f0;
+        border-color: var(--primary-color);
+      }
+
+      .combination-tab.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+      }
+
+      /* FullCalendar Custom Styling */
+      #calendar {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .fc-header-toolbar {
+        margin-bottom: 1.5rem !important;
+      }
+
+      .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+        color: var(--dark-text) !important;
+      }
+
+      .fc-button-primary {
+        background: var(--primary-color) !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 8px 16px !important;
+        font-weight: 500 !important;
+        transition: all 0.3s ease !important;
+      }
+
+      .fc-button-primary:hover {
+        background: #1d4ed8 !important;
+        transform: translateY(-1px);
+      }
+
+      .fc-button-primary:disabled {
+        background: #cbd5e1 !important;
+      }
+
+      .fc-event {
+        border-radius: 6px !important;
+        border: none !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+      }
+
+      .fc-event:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-1px) !important;
+      }
+
+      .fc-event-title {
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      .fc-timegrid-slot {
+        height: 40px !important;
+      }
+
+      .fc-timegrid-slot-minor {
+        border-top: 1px dashed #e5e7eb !important;
+      }
+
+      .fc-timegrid-slot-label {
+        font-weight: 500 !important;
+        color: var(--secondary-color) !important;
+      }
+
+      .fc-col-header {
+        background: #f8fafc !important;
+        font-weight: 600 !important;
+        color: var(--dark-text) !important;
+        padding: 15px 0 !important;
+      }
+
+      .fc-daygrid-day-number {
+        font-weight: 600 !important;
+        color: var(--dark-text) !important;
+      }
+
+      .fc-today {
+        background: rgba(37, 99, 235, 0.05) !important;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .calendar-header {
+          flex-direction: column;
+          gap: 15px;
+          align-items: flex-start;
+        }
+
+        .calendar-stats {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .combination-tabs {
+          overflow-x: auto;
+          padding-bottom: 10px;
+        }
+
+        .combination-tab {
+          flex-shrink: 0;
+          padding: 10px 16px;
+        }
+
+        .fc-toolbar {
+          flex-direction: column !important;
+          gap: 10px !important;
+        }
+
+        .fc-toolbar-chunk {
+          display: flex !important;
+          justify-content: center !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <!-- Header -->
+      <div class="header">
+        <h1>
+          <i class="fas fa-graduation-cap"></i> University Timetable Generator
+        </h1>
+        <p>Create optimized class schedules from your course data</p>
+      </div>
+
+      <!-- Step Indicator -->
+      <div class="step-indicator">
+        <div class="step active" id="step1">
+          <i class="fas fa-upload"></i>
+          <span class="ms-2">1. Upload Data</span>
+        </div>
+        <div class="step" id="step2">
+          <i class="fas fa-check-square"></i>
+          <span class="ms-2">2. Select Courses</span>
+        </div>
+        <div class="step" id="step3">
+          <i class="fas fa-cogs"></i>
+          <span class="ms-2">3. Generate</span>
+        </div>
+        <div class="step" id="step4">
+          <i class="fas fa-calendar"></i>
+          <span class="ms-2">4. View Timetables</span>
+        </div>
+      </div>
+
+      <!-- Content Area -->
+      <div class="content-area">
+        <!-- Step 1: File Upload -->
+        <div id="upload-section" class="section-card">
+          <h3>
+            <i class="fas fa-cloud-upload-alt text-primary"></i> Upload Course
+            Data
+          </h3>
+          <div class="file-upload-area" id="fileUploadArea">
+            <i class="fas fa-file-upload fa-3x text-secondary mb-3"></i>
+            <h5>Drop your CSV or Excel file here</h5>
+            <p class="text-muted">or click to browse files</p>
+            <input
+              type="file"
+              id="fileInput"
+              accept=".csv,.xlsx,.xls"
+              style="display: none"
+            />
+          </div>
+          <div id="fileStatus" class="mt-3"></div>
+        </div>
+
+        <!-- Compact Upload Section (shown after file is uploaded) -->
+        <div
+          id="compact-upload-section"
+          class="section-card"
+          style="display: none"
+        >
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <i class="fas fa-file-check text-success"></i>
+              <span class="ms-2">CSV file uploaded successfully</span>
+            </div>
+            <button
+              class="btn btn-outline-primary btn-sm"
+              onclick="showUploadNewFile()"
+            >
+              <i class="fas fa-upload"></i> Upload New CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Course Selection -->
+        <div
+          id="course-selection-section"
+          class="section-card"
+          style="display: none"
+        >
+          <h3>
+            <i class="fas fa-book text-primary"></i> Select Courses & Sections
+          </h3>
+
+          <div class="row">
+            <!-- Available Courses -->
+            <div class="col-md-4">
+              <h5><i class="fas fa-list"></i> Available Courses</h5>
+              <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="courseSearch"
+                  placeholder="Search courses..."
+                />
+              </div>
+              <div
+                id="coursesList"
+                style="max-height: 400px; overflow-y: auto"
+              ></div>
+            </div>
+
+            <!-- Course Sections -->
+            <div class="col-md-4">
+              <h5><i class="fas fa-clock"></i> Course Sections</h5>
+              <div id="sectionsContainer">
+                <p class="text-muted text-center" style="margin-top: 100px">
+                  <i class="fas fa-arrow-left"></i> Select a course to view
+                  sections
+                </p>
+              </div>
+            </div>
+            <!-- Selected Courses Summary -->
+            <div class="col-md-4">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5><i class="fas fa-check-circle"></i> Selected Courses</h5>
+                <button 
+                  class="btn btn-outline-danger btn-sm" 
+                  onclick="clearRoster()"
+                  id="clearSelectionsBtn"
+                  style="display: none;"
+                >
+                  <i class="fas fa-broom"></i> Clear
+                </button>
+              </div>
+              <div id="selectedCoursesSummary" class="selected-courses-summary">
+                <p class="text-muted text-center">No courses selected yet</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Generate Buttons Section -->
+          <div class="row mt-4">
+            <div class="col-md-6 text-center">
+              <button
+                class="btn btn-success btn-lg w-75"
+                onclick="generateTimetablesManually()"
+                disabled
+                id="generateManualBtn"
+              >
+                <i class="fas fa-cogs"></i> Generate Timetable Manually
+              </button>
+              <p class="text-muted mt-2">
+                Do it manually if you are sure about your timetable
+              </p>
+            </div>
+            <div class="col-md-6 text-center">
+              <button
+                class="btn btn-primary btn-lg w-75"
+                onclick="generateTimetablesByAI()"
+                disabled
+                id="generateAIBtn"
+              >
+                <i class="fas fa-robot"></i> Generate Timetable by AI
+              </button>
+              <p class="text-muted mt-2">
+                Click this if you are unsure about your timetable
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading Section -->
+        <div id="loading-section" class="loading">
+          <div class="spinner"></div>
+          <h4>Generating your timetables...</h4>
+          <p class="text-muted">This may take a few moments</p>
+        </div>
+        <!-- Step 3: Results -->
+        <div id="results-section" class="section-card" style="display: none">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">
+              <i class="fas fa-calendar-alt text-primary"></i> Generated
+              Timetables
+            </h3>
+            <div class="dropdown" id="exportDropdown" style="display: none">
+              <button
+                class="btn btn-outline-success btn-sm dropdown-toggle"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i class="fas fa-download"></i> Export Options
+              </button>
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item" href="/export/combinations/preview">
+                    <i class="fas fa-calendar-alt"></i> Export Timetable
+                    Combinations
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="/export/selected-sections/preview"
+                  >
+                    <i class="fas fa-filter"></i> Export Selected Sections Only
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="/export/processed-file/download"
+                  >
+                    <i class="fas fa-file-export"></i> Download Processed File
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div id="resultsContainer">
+            <div class="no-results">
+              <i class="fas fa-calendar-alt"></i>
+              <h4>No timetables generated yet</h4>
+              <p>
+                Generate timetables to see them displayed here in a beautiful
+                calendar view
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS and custom scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let currentCourses = [];
+      let selectedCourses = {};
+      let currentSelectedCourse = null; // Initialize drag and drop
+      document.addEventListener("DOMContentLoaded", function () {
+        const fileUploadArea = document.getElementById("fileUploadArea");
+        const fileInput = document.getElementById("fileInput");
+
+        // Check for existing data on page load
+        checkExistingData();
+
+        // Click to upload
+        fileUploadArea.addEventListener("click", () => fileInput.click());
+
+        // Drag and drop events
+        fileUploadArea.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          fileUploadArea.classList.add("dragover");
+        });
+
+        fileUploadArea.addEventListener("dragleave", () => {
+          fileUploadArea.classList.remove("dragover");
+        });
+
+        fileUploadArea.addEventListener("drop", (e) => {
+          e.preventDefault();
+          fileUploadArea.classList.remove("dragover");
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            // Normal drag & drop - ask user about clearing data
+            handleFile(files[0]);
+          }
+        });
+
+        fileInput.addEventListener("change", (e) => {
+          if (e.target.files.length > 0) {
+            // Check if this is a "new file" upload that should force clear data
+            const shouldClear = e.target.dataset.shouldClear === "true";
+
+            // Clear the flag after reading it
+            delete e.target.dataset.shouldClear;
+
+            if (shouldClear) {
+              // Force clear (from "Upload New CSV" button)
+              handleFile(e.target.files[0], true);
+            } else {
+              // Normal upload - ask user about clearing
+              handleFile(e.target.files[0]);
+            }
+          }
+        });
+
+        // Search functionality
+        document
+          .getElementById("courseSearch")
+          .addEventListener("input", filterCourses);
+      });
+
+      async function checkExistingData() {
+        try {
+          const response = await fetch("/status");
+          const status = await response.json();
+          if (status.data_loaded) {
+            // Hide upload section and show compact section
+            document.getElementById("upload-section").style.display = "none";
+            document.getElementById("compact-upload-section").style.display =
+              "block";
+
+            // Restore courses data
+            currentCourses = status.courses;
+            displayCourses();
+
+            // Restore selected courses
+            selectedCourses = status.selected_courses;
+            updateSelectedCoursesSummary();
+
+            // Update UI state
+            updateStep(2);
+            document.getElementById("course-selection-section").style.display =
+              "block";
+
+            // If there are selected courses, enable generate button
+            if (Object.keys(selectedCourses).length > 0) {
+              updateStep(3);
+              document.getElementById("generate-section").style.display =
+                "block";
+            }
+
+            // If combinations exist, enable export
+            if (status.has_combinations) {
+              updateStep(4);
+              document.getElementById("results-section").style.display =
+                "block";
+              loadCombinations();
+            }
+          }
+        } catch (error) {
+          console.log(
+            "No existing data found or error checking status:",
+            error
+          );
+        }
+      }
+
+      async function handleFile(file, shouldClearFirst = null) {
+        // 🧹 STEP 1: Handle data clearing logic
+        if (shouldClearFirst === null) {
+          // Check if there's existing data
+          const hasData =
+            currentCourses.length > 0 ||
+            Object.keys(selectedCourses).length > 0;
+
+          if (hasData) {
+            const shouldClear = confirm(
+              "⚠️ EXISTING DATA DETECTED ⚠️\n\n" +
+                "You have existing course data. Do you want to:\n\n" +
+                "• YES - Clear all data and load new file (fresh start)\n" +
+                "• NO - Keep existing data and try to merge/update\n\n" +
+                "Choose YES for a clean start, NO to keep your current selections."
+            );
+
+            if (shouldClear) {
+              console.log("🧹 User chose to clear data before upload...");
+              await clearAllDataSilent();
+            } else {
+              console.log("📂 User chose to keep existing data...");
+            }
+          }
+        } else if (shouldClearFirst) {
+          console.log("🧹 Clearing all previous data before upload...");
+          await clearAllDataSilent();
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const fileStatus = document.getElementById("fileStatus");
+        fileStatus.innerHTML =
+          '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Uploading and processing file...</div>';
+
+        try {
+          const response = await fetch("/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            fileStatus.innerHTML = `<div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> ${result.message}
+                    </div>`;
+
+            currentCourses = result.courses;
+            displayCourses();
+            updateStep(2);
+
+            // Hide the upload section and show compact button
+            document.getElementById("upload-section").style.display = "none";
+            document.getElementById("compact-upload-section").style.display =
+              "block";
+
+            document.getElementById("course-selection-section").style.display =
+              "block";
+          } else {
+            throw new Error(result.detail || "Upload failed");
+          }
+        } catch (error) {
+          fileStatus.innerHTML = `<div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
+                </div>`;
+        }
+      }
+
+      async function loadCombinations() {
+        try {
+          const response = await fetch("/combinations");
+          const result = await response.json();
+
+          if (result.combinations && result.combinations.length > 0) {
+            displayCombinations(result.combinations);
+            showAlert(
+              "info",
+              `Restored ${result.combinations.length} previously generated timetable combinations.`
+            );
+          }
+        } catch (error) {
+          console.log("Error loading existing combinations:", error);
+        }
+      }
+      function displayCourses() {
+        const coursesList = document.getElementById("coursesList");
+        coursesList.innerHTML = "";
+
+        currentCourses.forEach((course) => {
+          const courseItem = document.createElement("div");
+          courseItem.className = "course-item";
+
+          let linkedInfo = "";
+          if (course.is_linked) {
+            linkedInfo = `
+              <div class="small text-info mt-1">
+                <i class="fas fa-link"></i> Linked with: ${
+                  course.linked_title || course.linked_with
+                }
+              </div>
+            `;
+          }
+
+          courseItem.innerHTML = `
+            <div class="fw-bold">${course.code}</div>
+            <div class="small text-muted">${course.title}</div>
+            ${linkedInfo}
+          `;
+
+          courseItem.addEventListener("click", (event) =>
+            selectCourse(course.code, event)
+          );
+          coursesList.appendChild(courseItem);
+        });
+      }
+
+      function filterCourses() {
+        const searchTerm = document
+          .getElementById("courseSearch")
+          .value.toLowerCase();
+        const courseItems = document.querySelectorAll(".course-item");
+
+        courseItems.forEach((item) => {
+          const courseText = item.textContent.toLowerCase();
+          item.style.display = courseText.includes(searchTerm)
+            ? "block"
+            : "none";
+        });
+      }
+      async function selectCourse(courseCode, event = null) {
+        // Update visual selection
+        document.querySelectorAll(".course-item").forEach((item) => {
+          item.classList.remove("selected");
+        });
+
+        // If called from an event, highlight the clicked item
+        if (event && event.target) {
+          event.target.closest(".course-item").classList.add("selected");
+        } else {
+          // If called programmatically, find and highlight the course
+          const courseItems = document.querySelectorAll(".course-item");
+          courseItems.forEach((item) => {
+            const courseCodeInItem = item.querySelector(".fw-bold").textContent;
+            if (courseCodeInItem === courseCode) {
+              item.classList.add("selected");
+            }
+          });
+        }
+
+        currentSelectedCourse = courseCode;
+
+        try {
+          const response = await fetch(`/courses/${courseCode}/sections`);
+          const result = await response.json();
+
+          displaySections(courseCode, result.sections);
+        } catch (error) {
+          console.error("Error fetching sections:", error);
+        }
+      }
+
+      function displaySections(courseCode, sections) {
+        const container = document.getElementById("sectionsContainer");
+        container.innerHTML = `
+                <h6 class="mb-3">Sections for ${courseCode}</h6>
+            `;
+
+        sections.forEach((section) => {
+          const sectionDiv = document.createElement("div");
+          sectionDiv.className = "section-checkbox";
+
+          const isSelected =
+            selectedCourses[courseCode] &&
+            selectedCourses[courseCode].includes(section.section);
+          if (isSelected) sectionDiv.classList.add("selected");
+
+          let pairInfo = "";
+          if (section.is_paired) {
+            const pairedWith = section.paired_with
+              .map((p) => `${p[0]} ${p[1]}`)
+              .join(", ");
+            pairInfo = `<div class="small text-success mt-1">
+                        <i class="fas fa-link"></i> Paired with: ${pairedWith}
+                    </div>`;
+          }
+
+          sectionDiv.innerHTML = `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               id="section_${section.section}" 
+                               ${isSelected ? "checked" : ""}
+                               onchange="toggleSection('${courseCode}', '${
+            section.section
+          }')">
+                        <label class="form-check-label fw-bold" for="section_${
+                          section.section
+                        }">
+                            Section ${section.section}
+                        </label>
+                    </div>
+                    <div class="small text-muted">
+                        <div><i class="fas fa-user"></i> ${
+                          section.instructor
+                        }</div>
+                        <div><i class="fas fa-clock"></i> ${section.times.join(
+                          ", "
+                        )}</div>
+                        ${pairInfo}
+                    </div>
+                `;
+
+          container.appendChild(sectionDiv);
+        });
+      }
+
+      async function toggleSection(courseCode, sectionCode) {
+        if (!selectedCourses[courseCode]) {
+          selectedCourses[courseCode] = [];
+        }
+
+        const index = selectedCourses[courseCode].indexOf(sectionCode);
+        if (index > -1) {
+          selectedCourses[courseCode].splice(index, 1);
+          if (selectedCourses[courseCode].length === 0) {
+            delete selectedCourses[courseCode];
+          }
+        } else {
+          selectedCourses[courseCode].push(sectionCode);
+        }
+
+        // Update visual state
+        const sectionDiv = document
+          .getElementById(`section_${sectionCode}`)
+          .closest(".section-checkbox");
+        sectionDiv.classList.toggle("selected"); // Update backend
+        try {
+          const response = await fetch("/select-sections", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              course_code: courseCode,
+              selected_sections: selectedCourses[courseCode] || [],
+            }),
+          });
+          const result = await response.json();
+
+          // If a linked course was automatically updated, sync our local state
+          if (result.linked_course_updated) {
+            // Update the selectedCourses with the complete backend state
+            selectedCourses = result.selected_courses;
+
+            // Show notification about linked course
+            showNotification(
+              `Automatically selected matching sections for linked course: ${result.linked_course_updated}`,
+              "info"
+            );
+          } else {
+            // Update with backend state even if no linking occurred
+            selectedCourses = result.selected_courses;
+          }
+        } catch (error) {
+          console.error("Error updating sections:", error);
+        }
+
+        updateSelectedCoursesSummary();
+      }
+      function updateSelectedCoursesSummary() {
+        const container = document.getElementById("selectedCoursesSummary");
+        const generateManualBtn = document.getElementById("generateManualBtn");
+        const generateAIBtn = document.getElementById("generateAIBtn");
+        const clearSelectionsBtn = document.getElementById("clearSelectionsBtn");
+
+        if (Object.keys(selectedCourses).length === 0) {
+          container.innerHTML =
+            '<p class="text-muted text-center">No courses selected yet</p>';
+          generateManualBtn.disabled = true;
+          generateAIBtn.disabled = true;
+          // Hide clear button when no courses selected
+          if (clearSelectionsBtn) clearSelectionsBtn.style.display = "none";
+          return;
+        }
+        let html = "";
+        let totalSections = 0;
+        for (const [courseCode, sections] of Object.entries(selectedCourses)) {
+          if (sections.length > 0) {
+            totalSections += sections.length;
+
+            // Find the course title from currentCourses
+            const course = currentCourses.find((c) => c.code === courseCode);
+            const courseTitle = course ? course.title : courseCode;
+
+            html += `
+                        <div class="selected-course-item d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">${courseTitle}</div>
+                                <div class="small text-muted">${courseCode}</div>
+                                <div class="small">Sections: ${sections.join(
+                                  ", "
+                                )}</div>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm ms-2" 
+                                    onclick="editCourseSelection('${courseCode}')"
+                                    title="Edit sections for ${courseCode}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    `;
+          }
+        }
+
+        html += `
+                <div class="mt-3 p-2 bg-light rounded">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        ${
+                          Object.keys(selectedCourses).length
+                        } courses, ${totalSections} sections total
+                    </small>
+                </div>
+            `;
+        container.innerHTML = html;
+        generateManualBtn.disabled = false;
+        generateAIBtn.disabled = false;
+        // Show clear button when courses are selected
+        if (clearSelectionsBtn) clearSelectionsBtn.style.display = "inline-block";
+      }
+      async function generateTimetablesManually() {
+        document.getElementById("loading-section").style.display = "block";
+        updateStep(3);
+
+        try {
+          const response = await fetch("/generate", {
+            method: "POST",
+          });
+
+          const result = await response.json();
+
+          document.getElementById("loading-section").style.display = "none";
+
+          if (result.success) {
+            displayResults(result);
+            updateStep(4);
+          } else {
+            showAlert("warning", result.message);
+          }
+        } catch (error) {
+          document.getElementById("loading-section").style.display = "none";
+          showAlert("danger", `Error generating timetables: ${error.message}`);
+        }
+      }
+
+      async function generateTimetablesByAI() {
+        // Redirect to AI preferences page (placeholder for now)
+        window.location.href = "/ai-preferences";
+      }
+
+      function displayResults(result) {
+        const container = document.getElementById("resultsContainer");
+
+        if (result.count === 0) {
+          container.innerHTML = `
+            <div class="alert alert-warning">
+              <h5><i class="fas fa-exclamation-triangle"></i> No Valid Timetables Found</h5>
+              <p>No valid timetables could be generated with your current selections. This might be due to:</p>
+              <ul>
+                <li>Time conflicts between selected courses</li>
+                <li>No compatible sections available</li>
+                <li>🧠 AI filter rejected incompatible section pairings</li>
+              </ul>
+              <p>Try selecting different sections or fewer courses.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Create modern calendar interface with combination tabs
+        createCalendarInterface(result);
+
+        document.getElementById("results-section").style.display = "block";
+
+        // Show export button if combinations were generated
+        if (result.count > 0) {
+          document.getElementById("exportDropdown").style.display =
+            "inline-block";
+        }
+      }
+
+      let currentCalendar = null;
+      let allTimetables = [];
+
+      function createCalendarInterface(result) {
+        allTimetables = result.timetables;
+        const container = document.getElementById("resultsContainer");
+
+        // Create the calendar interface HTML
+        let html = `
+          <div class="alert alert-success">
+            <h5><i class="fas fa-check-circle"></i> Success! 🎉</h5>
+            <p>Generated <strong>${result.count}</strong> valid timetable${
+          result.count > 1 ? "s" : ""
+        } with perfect time positioning!</p>
+          </div>
+
+          <div class="combination-tabs">
+        `;
+
+        // Create tabs for each combination
+        result.timetables.forEach((timetable, index) => {
+          const isActive = index === 0 ? "active" : "";
+          html += `
+            <div class="combination-tab ${isActive}" onclick="switchTimetable(${index})">
+              <i class="fas fa-calendar-alt"></i> Combination ${index + 1}
+            </div>
+          `;
+        });
+
+        html += `
+          </div>
+
+          <div class="calendar-container">
+            <div class="calendar-header">
+              <h4 class="calendar-title">
+                <i class="fas fa-calendar-week"></i> 
+                <span id="calendar-combination-title">Combination 1</span>
+              </h4>
+              <div class="calendar-stats">
+                <div class="stat-item">
+                  <i class="fas fa-book"></i>
+                  <span id="calendar-courses-count">${
+                    result.timetables[0]?.courses?.length || 0
+                  } courses</span>
+                </div>
+                <div class="stat-item">
+                  <i class="fas fa-clock"></i>
+                  <span id="calendar-days-count">Multiple days</span>
+                </div>
+              </div>
+            </div>
+            <div id="calendar"></div>
+          </div>
+        `;
+
+        container.innerHTML = html;
+
+        // Initialize the calendar with the first timetable
+        initializeCalendar(0);
+      }
+
+      function initializeCalendar(timetableIndex) {
+        const timetable = allTimetables[timetableIndex];
+
+        // Update header info
+        document.getElementById(
+          "calendar-combination-title"
+        ).textContent = `Combination ${timetableIndex + 1}`;
+        document.getElementById(
+          "calendar-courses-count"
+        ).textContent = `${timetable.courses.length} courses`;
+
+        // Count unique days
+        const daysUsed = new Set();
+        Object.keys(timetable.schedule).forEach((day) => {
+          if (timetable.schedule[day].length > 0) {
+            daysUsed.add(day);
+          }
+        });
+        document.getElementById(
+          "calendar-days-count"
+        ).textContent = `${daysUsed.size} days`;
+
+        // Convert timetable to FullCalendar events
+        const events = convertTimetableToEvents(timetable);
+
+        // Destroy existing calendar if it exists
+        if (currentCalendar) {
+          currentCalendar.destroy();
+        }
+
+        // Initialize FullCalendar
+        const calendarEl = document.getElementById("calendar");
+        currentCalendar = new FullCalendar.Calendar(calendarEl, {
+          initialView: "timeGridWeek",
+          headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay",
+          },
+          events: events,
+          slotMinTime: "08:00:00",
+          slotMaxTime: "19:00:00",
+          slotDuration: "00:15:00", // 15-minute precision for your odd times!
+          slotLabelInterval: "01:00:00",
+          height: "auto",
+          expandRows: true,
+          nowIndicator: true,
+          allDaySlot: false,
+
+          // Event styling and interaction
+          eventDidMount: function (info) {
+            // Add tooltip with course details
+            const course = info.event.extendedProps;
+            info.el.setAttribute(
+              "title",
+              `📚 ${course.title}\n` +
+                `📝 ${course.courseCode} ${course.section}\n` +
+                `👨‍🏫 ${course.instructor}\n` +
+                `🏫 ${course.room}\n` +
+                `⏰ ${info.event.start.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })} - ${info.event.end.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+            );
+
+            // Add course-specific styling
+            const courseType = getCourseType(course.courseCode);
+            info.el.classList.add(`event-${courseType}`);
+          },
+
+          // Handle event clicks
+          eventClick: function (info) {
+            const course = info.event.extendedProps;
+            showCourseModal(course, info.event);
+          },
+
+          // Responsive design
+          windowResize: function () {
+            currentCalendar.updateSize();
+          },
+        });
+
+        currentCalendar.render();
+      }
+
+      function switchTimetable(index) {
+        // Update active tab
+        document.querySelectorAll(".combination-tab").forEach((tab, i) => {
+          if (i === index) {
+            tab.classList.add("active");
+          } else {
+            tab.classList.remove("active");
+          }
+        });
+
+        // Initialize calendar with new timetable
+        initializeCalendar(index);
+      }
+
+      function convertTimetableToEvents(timetable) {
+        const events = [];
+        const currentWeekStart = getWeekStart();
+
+        Object.keys(timetable.schedule).forEach((day) => {
+          if (timetable.schedule[day].length > 0) {
+            timetable.schedule[day].forEach((classInfo) => {
+              const dayIndex = getDayIndex(day);
+              const eventDate = new Date(currentWeekStart);
+              eventDate.setDate(currentWeekStart.getDate() + dayIndex);
+
+              // Parse start and end times from the time strings
+              const startDateTime = parseTimeString(
+                classInfo.start_time,
+                eventDate
+              );
+              const endDateTime = parseTimeString(
+                classInfo.end_time,
+                eventDate
+              );
+
+              if (startDateTime && endDateTime) {
+                // Extract course code and section from the course string
+                const courseParts = classInfo.course.split(" ");
+                const courseCode = courseParts.slice(0, -1).join(" ");
+                const section = courseParts[courseParts.length - 1];
+
+                events.push({
+                  title: `${classInfo.title}`, // Show course title for easy identification
+                  start: startDateTime.toISOString(),
+                  end: endDateTime.toISOString(),
+                  backgroundColor: getCourseColor(courseCode),
+                  borderColor: getCourseColor(courseCode, true),
+                  textColor: "white",
+                  extendedProps: {
+                    courseCode: courseCode,
+                    section: section,
+                    title: classInfo.title,
+                    instructor: classInfo.instructor,
+                    room: classInfo.room,
+                    day: day,
+                    timeSlot: classInfo.time,
+                  },
+                });
+              }
+            });
+          }
+        });
+
+        console.log("Generated events:", events); // Debug log
+        return events;
+      }
+
+      function getCourseType(courseCode) {
+        const code = courseCode.toLowerCase();
+        if (code.includes("core")) return "core";
+        if (code.includes("cs")) return "cs";
+        if (code.includes("ee") || code.includes("ce")) return "ee";
+        if (code.includes("phy")) return "phy";
+        if (code.includes("math")) return "math";
+        if (code.includes("mus")) return "mus";
+        if (code.includes("bio")) return "bio";
+        if (code.includes("com")) return "com";
+        if (code.includes("sdp")) return "sdp";
+        if (code.includes("lang")) return "lang";
+        return "default";
+      }
+
+      function getWeekStart() {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Monday start
+        return new Date(today.setDate(diff));
+      }
+
+      function getDayIndex(dayName) {
+        const days = [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+        ];
+        return days.indexOf(dayName);
+      }
+
+      function parseTime(timeObj, date) {
+        if (!timeObj || !date) return null;
+
+        let hour, minute;
+
+        if (typeof timeObj === "object" && timeObj.hour !== undefined) {
+          hour = timeObj.hour;
+          minute = timeObj.minute || 0;
+        } else if (typeof timeObj === "string") {
+          const timeParts = timeObj.split(":");
+          hour = parseInt(timeParts[0]);
+          minute = parseInt(timeParts[1]) || 0;
+        } else {
+          return null;
+        }
+
+        const dateTime = new Date(date);
+        dateTime.setHours(hour, minute, 0, 0);
+        return dateTime;
+      }
+
+      function parseTimeString(timeStr, date) {
+        if (!timeStr || !date) return null;
+
+        try {
+          // Handle formats like "2:30 PM", "14:30", etc.
+          const cleanTime = timeStr.trim();
+          let hour, minute;
+
+          if (cleanTime.includes("AM") || cleanTime.includes("PM")) {
+            // 12-hour format
+            const [time, period] = cleanTime.split(" ");
+            const [hourStr, minuteStr] = time.split(":");
+            hour = parseInt(hourStr);
+            minute = parseInt(minuteStr) || 0;
+
+            if (period === "PM" && hour !== 12) {
+              hour += 12;
+            } else if (period === "AM" && hour === 12) {
+              hour = 0;
+            }
+          } else {
+            // 24-hour format or simple format
+            const [hourStr, minuteStr] = cleanTime.split(":");
+            hour = parseInt(hourStr);
+            minute = parseInt(minuteStr) || 0;
+          }
+
+          const dateTime = new Date(date);
+          dateTime.setHours(hour, minute, 0, 0);
+          return dateTime;
+        } catch (error) {
+          console.error("Error parsing time:", timeStr, error);
+          return null;
+        }
+      }
+
+      function getCourseColor(courseCode, isDark = false) {
+        const code = courseCode.toLowerCase();
+        const colors = {
+          core: isDark ? "#1d4ed8" : "#3b82f6",
+          cs: isDark ? "#047857" : "#10b981",
+          ce: isDark ? "#047857" : "#10b981",
+          ee: isDark ? "#d97706" : "#f59e0b",
+          phy: isDark ? "#db2777" : "#ec4899",
+          math: isDark ? "#0891b2" : "#06b6d4",
+          mus: isDark ? "#6d4c41" : "#795548",
+          bio: isDark ? "#7c3aed" : "#8b5cf6",
+          com: isDark ? "#dc2626" : "#ef4444",
+          sdp: isDark ? "#059669" : "#16a34a",
+          lang: isDark ? "#ea580c" : "#f97316",
+          ant: isDark ? "#7c2d12" : "#ea580c",
+          rel: isDark ? "#581c87" : "#7c3aed",
+          poli: isDark ? "#991b1b" : "#dc2626",
+        };
+
+        for (const [key, color] of Object.entries(colors)) {
+          if (code.includes(key)) {
+            return color;
+          }
+        }
+
+        return isDark ? "#374151" : "#6b7280"; // Default gray
+      }
+
+      function showCourseModal(course, event) {
+        const startTime = event.start.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const endTime = event.end.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        alert(
+          `📚 Course Details\n\n` +
+            `Title: ${course.title}\n` +
+            `Course: ${course.courseCode}\n` +
+            `Section: ${course.section}\n` +
+            `👨‍🏫 Instructor: ${course.instructor}\n` +
+            `🏫 Room: ${course.room}\n` +
+            `📅 Day: ${course.day}\n` +
+            `⏰ Time: ${startTime} - ${endTime}`
+        );
+      }
+
+      // LEGACY FUNCTION - Replaced by FullCalendar.js implementation
+      /*
+      function createTimetableHTML(timetable, index) {
+        const days = [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+        ];
+        const timeSlots = [
+          "8:00",
+          "9:00",
+          "10:00",
+          "11:00",
+          "12:00",
+          "13:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00",
+          "18:00",
+        ];
+
+        let html = `
+                <div class="timetable-card fade-in">
+                    <div class="timetable-header">
+                        <h4>Timetable ${timetable.id}</h4>
+                        <div class="small">
+                            Courses: ${timetable.courses
+                              .map((c) => c.course)
+                              .join(", ")}
+                        </div>
+                    </div>
+                    
+                    <div class="p-3">
+                        <h6>Enrolled Courses:</h6>
+                        <div class="row">
+            `;
+
+        timetable.courses.forEach((course) => {
+          html += `
+                    <div class="col-md-6 mb-2">
+                        <div class="p-2 bg-light rounded">
+                            <div class="fw-bold">${course.course}</div>
+                            <div class="small text-muted">${course.title}</div>
+                            <div class="small text-muted">👨‍🏫 ${course.instructor}</div>
+                        </div>
+                    </div>
+                `;
+        });
+
+        html += `
+                        </div>
+                        
+                        <h6 class="mt-4">Weekly Schedule:</h6>
+                        <div class="timetable-grid">
+                            <div class="time-slot">Time</div>
+            `;
+
+        // Day headers
+        days.forEach((day) => {
+          html += `<div class="day-header">${day.substr(0, 3)}</div>`;
+        });
+
+        // Time slots
+        timeSlots.forEach((timeSlot) => {
+          html += `<div class="time-slot">${timeSlot}</div>`;
+
+          days.forEach((day) => {
+            const courseAtTime = timetable.schedule[day].find((course) =>
+              course.time.startsWith(timeSlot)
+            );
+
+            if (courseAtTime) {
+              html += `
+                            <div class="course-slot">
+                                <div class="fw-bold">${courseAtTime.course}</div>
+                                <div class="small">${courseAtTime.time}</div>
+                                <div class="small">${courseAtTime.room}</div>
+                            </div>
+                        `;
+            } else {
+              html += `<div class="course-slot empty"></div>`;
+            }
+          });
+        });
+
+        html += `
+                        </div>
+                    </div>
+                </div>
+            `;
+
+        return html;
+      }
+      */
+
+      async function clearAllDataSilent() {
+        try {
+          console.log("🧹 Starting complete application reset...");
+
+          // Clear backend data first
+          await fetch("/clear-data", { method: "POST" });
+
+          // Reset ALL local state variables
+          currentCourses = [];
+          selectedCourses = {};
+          currentSelectedCourse = null;
+          allTimetables = [];
+
+          // Destroy existing calendar if it exists
+          if (currentCalendar) {
+            currentCalendar.destroy();
+            currentCalendar = null;
+          }
+
+          // Reset ALL UI elements to initial state
+          document.getElementById("fileStatus").innerHTML = "";
+          document.getElementById("coursesList").innerHTML = "";
+          document.getElementById("sectionsContainer").innerHTML = `
+            <p class="text-muted text-center" style="margin-top: 100px;">
+              <i class="fas fa-arrow-left"></i> Select a course to view sections
+            </p>
+          `;
+          document.getElementById("selectedCoursesSummary").innerHTML =
+            '<p class="text-muted text-center">No courses selected yet</p>';
+
+          // Hide all sections except upload (back to initial state)
+          document.getElementById("upload-section").style.display = "block";
+          document.getElementById("compact-upload-section").style.display =
+            "none";
+          document.getElementById("course-selection-section").style.display =
+            "none";
+          document.getElementById("generate-section").style.display = "none";
+          document.getElementById("results-section").style.display = "none";
+
+          // Reset buttons to disabled state
+          const generateManualBtn =
+            document.getElementById("generateManualBtn");
+          const generateAIBtn = document.getElementById("generateAIBtn");
+          if (generateManualBtn) generateManualBtn.disabled = true;
+          if (generateAIBtn) generateAIBtn.disabled = true;
+
+          // Hide clear button if it exists
+          const clearSelectionsBtn =
+            document.getElementById("clearSelectionsBtn");
+          if (clearSelectionsBtn) clearSelectionsBtn.style.display = "none";
+
+          // Hide export button
+          const exportDropdown = document.getElementById("exportDropdown");
+          if (exportDropdown) exportDropdown.style.display = "none";
+
+          // Clear any results content
+          const resultsContainer = document.getElementById("resultsContainer");
+          if (resultsContainer) resultsContainer.innerHTML = "";
+
+          // Reset file input
+          const fileInput = document.getElementById("fileInput");
+          if (fileInput) fileInput.value = "";
+
+          // Remove any active selections from course items
+          document.querySelectorAll(".course-item").forEach((item) => {
+            item.classList.remove("selected");
+          });
+
+          // Reset progress indicators to step 1
+          updateStep(1);
+
+          console.log("✅ Complete application reset successful!");
+        } catch (error) {
+          console.error("❌ Error during complete reset:", error);
+          throw error; // Re-throw so calling function can handle it
+        }
+      }
+
+      async function clearAllData() {
+        if (
+          confirm(
+            "Are you sure you want to clear all data? This will remove your uploaded file and all selections."
+          )
+        ) {
+          try {
+            await fetch("/clear-data", { method: "POST" });
+            location.reload();
+          } catch (error) {
+            showAlert("danger", "Error clearing data");
+          }
+        }
+      }
+
+      async function clearRoster() {
+        if (confirm("Are you sure you want to clear your course selections?")) {
+          try {
+            await fetch("/clear-roster", { method: "POST" });
+            selectedCourses = {};
+            updateSelectedCoursesSummary();
+            document.getElementById("sectionsContainer").innerHTML = `
+                        <p class="text-muted text-center" style="margin-top: 100px;">
+                            <i class="fas fa-arrow-left"></i> Select a course to view sections
+                        </p>
+                    `;
+            showAlert("success", "Course roster cleared successfully!");
+          } catch (error) {
+            showAlert("danger", "Error clearing roster");
+          }
+        }
+      }
+
+      async function showUploadNewFile() {
+        // Check if there's existing data that would be cleared
+        const hasData = currentCourses.length > 0 || Object.keys(selectedCourses).length > 0;
+        
+        if (hasData) {
+          const confirmed = confirm(
+            "🗑️ WILL BE CLEARED:\n" +
+            "• All current course data\n" +
+            "• Selected courses and sections\n" +
+            "• Generated timetables\n\n" +
+            "📁 THEN: File picker will open for new CSV\n\n" +
+            "Continue?"
+          );
+
+          if (!confirmed) {
+            return;
+          }
+        }
+
+        try {
+          // Clear all data first
+          await clearAllData();
+
+          // Show success message
+          showAlert(
+            "success",
+            "🧹 Ready for new CSV! File picker opening...",
+            2000
+          );
+
+          // Small delay then trigger file picker
+          setTimeout(() => {
+            const fileInput = document.getElementById("fileInput");
+            if (fileInput) {
+              // Set a flag so we know this is a "new file" upload
+              fileInput.dataset.shouldClear = "true";
+              fileInput.click(); // THIS IS THE KEY DIFFERENCE - OPENS FILE PICKER!
+            }
+          }, 500);
+        } catch (error) {
+          console.error("Error during reset:", error);
+          showAlert(
+            "danger",
+            "Error resetting application. Please refresh the page."
+          );
+        }
+      }
+
+      function updateStep(stepNumber) {
+        // Reset all steps
+        for (let i = 1; i <= 4; i++) {
+          const step = document.getElementById(`step${i}`);
+          step.classList.remove("active", "completed");
+
+          if (i < stepNumber) {
+            step.classList.add("completed");
+          } else if (i === stepNumber) {
+            step.classList.add("active");
+          }
+        }
+      }
+
+      function showAlert(type, message, timeout = 5000) {
+        const alertDiv = document.createElement("div");
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+        // Insert at the top of content area
+        const contentArea = document.querySelector(".content-area");
+        contentArea.insertBefore(alertDiv, contentArea.firstChild);
+
+        // Auto-dismiss after specified timeout
+        setTimeout(() => {
+          if (alertDiv.parentNode) {
+            alertDiv.remove();
+          }
+        }, timeout);
+      }
+      function showNotification(message, type = "success") {
+        // Create a notification element
+        const notification = document.createElement("div");
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText =
+          "top: 20px; right: 20px; z-index: 1050; max-width: 350px;";
+        notification.innerHTML = `
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 5000);
+      }
+
+      function editCourseSelection(courseCode) {
+        // Find the course in currentCourses
+        const course = currentCourses.find((c) => c.code === courseCode);
+        if (!course) {
+          alert("Course not found!");
+          return;
+        }
+
+        // Select the course in the course list to trigger section display
+        selectCourse(courseCode);
+
+        // Scroll to the sections view
+        document
+          .getElementById("sectionsContainer")
+          .scrollIntoView({ behavior: "smooth" });
+
+        // Update step indicator
+        updateStep(2);
+
+        // Show a message indicating edit mode
+        showAlert(
+          "info",
+          `Editing sections for ${courseCode}. Make your changes and they will be automatically saved.`
+        );
+      }
+    </script>
+  </body>
+</html>

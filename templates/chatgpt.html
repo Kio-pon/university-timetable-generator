@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChatGPT</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background-color: #212121;
+        color: #ececf1;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .chat-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        max-width: none;
+        width: 100%;
+      }
+
+      .header {
+        background-color: #212121;
+        border-bottom: 1px solid #565869;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .header h1 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #ececf1;
+      }
+
+      .model-selector {
+        background-color: #2f2f2f;
+        border: 1px solid #565869;
+        border-radius: 6px;
+        padding: 6px 12px;
+        color: #ececf1;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .clear-btn {
+        background-color: transparent;
+        border: 1px solid #565869;
+        color: #ececf1;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s ease;
+      }
+
+      .clear-btn:hover {
+        background-color: #2f2f2f;
+      }
+
+      .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        background-color: #212121;
+      }
+
+      .message {
+        border-bottom: 1px solid #565869;
+        padding: 24px 0;
+      }
+
+      .message-content {
+        max-width: 768px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+      }
+
+      .message-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .message.user {
+        background-color: #212121;
+      }
+
+      .message.user .message-avatar {
+        background-color: #19c37d;
+        color: white;
+      }
+
+      .message.assistant {
+        background-color: #444654;
+      }
+
+      .message.assistant .message-avatar {
+        background-color: #10a37f;
+        color: white;
+      }
+
+      .message.error {
+        background-color: #2d1b1b;
+      }
+
+      .message.error .message-avatar {
+        background-color: #d73a49;
+        color: white;
+      }
+
+      .message.ai {
+        background-color: #444654;
+      }
+
+      .message.ai .message-avatar {
+        background-color: #19c37d;
+        color: white;
+      }
+
+      .message-text {
+        flex: 1;
+        line-height: 1.75;
+        font-size: 16px;
+        color: #ececf1;
+        word-wrap: break-word;
+      }
+
+      .message-time {
+        font-size: 12px;
+        color: #8e8ea0;
+        margin-top: 8px;
+      }
+
+      .chat-input-container {
+        background-color: #212121;
+        border-top: 1px solid #565869;
+        padding: 12px;
+      }
+
+      .chat-input-wrapper {
+        max-width: 768px;
+        margin: 0 auto;
+        position: relative;
+      }
+
+      .input-form {
+        display: flex;
+        background-color: #40414f;
+        border-radius: 12px;
+        border: 1px solid #565869;
+        overflow: hidden;
+      }
+
+      .input-field {
+        flex: 1;
+        padding: 12px 16px;
+        background: transparent;
+        border: none;
+        color: #ececf1;
+        font-size: 16px;
+        outline: none;
+        resize: none;
+        max-height: 200px;
+        min-height: 24px;
+      }
+
+      .input-field::placeholder {
+        color: #8e8ea0;
+      }
+
+      .send-btn {
+        background-color: transparent;
+        border: none;
+        padding: 8px 12px;
+        cursor: pointer;
+        color: #8e8ea0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+      }
+
+      .send-btn:hover {
+        color: #ececf1;
+      }
+
+      .send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .send-icon {
+        width: 16px;
+        height: 16px;
+      }
+
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        text-align: center;
+        color: #8e8ea0;
+        padding: 24px;
+      }
+
+      .empty-state h2 {
+        font-size: 32px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #ececf1;
+      }
+
+      .empty-state p {
+        font-size: 16px;
+        margin-bottom: 32px;
+      }
+
+      .example-prompts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+        max-width: 768px;
+        width: 100%;
+      }
+
+      .example-prompt {
+        background-color: #444654;
+        border: 1px solid #565869;
+        border-radius: 8px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .example-prompt:hover {
+        background-color: #565869;
+      }
+
+      .example-prompt h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #ececf1;
+      }
+
+      .example-prompt p {
+        font-size: 12px;
+        color: #8e8ea0;
+      }
+
+      .typing-indicator {
+        display: none;
+        padding: 24px 0;
+        border-bottom: 1px solid #565869;
+        background-color: #444654;
+      }
+
+      .typing-content {
+        max-width: 768px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        gap: 24px;
+        align-items: center;
+      }
+
+      .typing-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 2px;
+        background-color: #19c37d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        color: white;
+      }
+
+      .typing-dots {
+        display: flex;
+        gap: 4px;
+      }
+
+      .typing-dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #8e8ea0;
+        animation: typing 1.4s infinite;
+      }
+
+      .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing {
+        0%,
+        60%,
+        100% {
+          opacity: 0.3;
+        }
+        30% {
+          opacity: 1;
+        }
+      }
+
+      /* Scrollbar styling */
+      .chat-messages::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .chat-messages::-webkit-scrollbar-track {
+        background: #212121;
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb {
+        background: #565869;
+        border-radius: 4px;
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb:hover {
+        background: #8e8ea0;
+      }
+
+      /* Mobile responsive */
+      @media (max-width: 768px) {
+        .message-content {
+          padding: 0 16px;
+          gap: 16px;
+        }
+
+        .chat-input-wrapper {
+          padding: 0 16px;
+        }
+
+        .example-prompts {
+          grid-template-columns: 1fr;
+          padding: 0 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-container">
+      <div class="header">
+        <div class="header-left">
+          <h1>ChatGPT</h1>
+          <select class="model-selector">
+            <option>GPT-4</option>
+          </select>
+        </div>
+        <form method="post" action="/clear" style="display: inline">
+          <button type="submit" class="clear-btn">Clear conversation</button>
+        </form>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        {% if user_message or ai_response or error %} {% if error %}
+        <div class="message error">
+          <div class="message-content">
+            <div class="message-avatar">Error</div>
+            <div>
+              <div class="message-text">{{ error }}</div>
+            </div>
+          </div>
+        </div>
+        {% endif %} {% if user_message %}
+        <div class="message user">
+          <div class="message-content">
+            <div class="message-avatar">You</div>
+            <div>
+              <div class="message-text">{{ user_message }}</div>
+            </div>
+          </div>
+        </div>
+        {% endif %} {% if ai_response %}
+        <div class="message assistant">
+          <div class="message-content">
+            <div class="message-avatar">AI</div>
+            <div>
+              <div class="message-text">{{ ai_response }}</div>
+            </div>
+          </div>
+        </div>
+        {% endif %} {% else %}
+        <div class="empty-state">
+          <h2>How can I help you today?</h2>
+          <div class="example-prompts">
+            <div
+              class="example-prompt"
+              onclick="fillPrompt('Help me create a study schedule')"
+            >
+              <h3>📚 Study Planning</h3>
+              <p>Help me create a study schedule</p>
+            </div>
+            <div
+              class="example-prompt"
+              onclick="fillPrompt('Explain quantum physics concepts')"
+            >
+              <h3>🧠 Learning</h3>
+              <p>Explain quantum physics concepts</p>
+            </div>
+            <div
+              class="example-prompt"
+              onclick="fillPrompt('Help me with math homework')"
+            >
+              <h3>📐 Homework Help</h3>
+              <p>Help me with math homework</p>
+            </div>
+            <div
+              class="example-prompt"
+              onclick="fillPrompt('Create a timetable for my classes')"
+            >
+              <h3>⏰ Timetable</h3>
+              <p>Create a timetable for my classes</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="typing-indicator" id="typingIndicator">
+        <div class="typing-content">
+          <div class="typing-avatar">AI</div>
+          <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-container">
+        <div class="chat-input-wrapper">
+          <form method="post" action="/chat" class="input-form" id="chatForm">
+            <textarea
+              name="message"
+              class="input-field"
+              placeholder="Message ChatGPT"
+              required
+              id="messageInput"
+              rows="1"
+            ></textarea>
+            <button type="submit" class="send-btn" id="sendBtn">
+              <svg class="send-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function scrollToBottom() {
+        const chatMessages = document.getElementById("chatMessages");
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function fillPrompt(text) {
+        document.getElementById("messageInput").value = text;
+        document.getElementById("messageInput").focus();
+      }
+
+      // Auto-resize textarea
+      const textarea = document.getElementById("messageInput");
+      textarea.addEventListener("input", function () {
+        this.style.height = "auto";
+        this.style.height = Math.min(this.scrollHeight, 200) + "px";
+      });
+
+      // Handle form submission
+      document
+        .getElementById("chatForm")
+        .addEventListener("submit", function (e) {
+          const input = document.getElementById("messageInput");
+          if (!input.value.trim()) {
+            e.preventDefault();
+            return;
+          }
+          document.getElementById("typingIndicator").style.display = "block";
+          setTimeout(scrollToBottom, 100);
+        });
+
+      // Handle Enter key (Shift+Enter for new line)
+      textarea.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          if (this.value.trim()) {
+            document.getElementById("chatForm").submit();
+          }
+        }
+      });
+
+      // Focus on input
+      window.addEventListener("load", function () {
+        document.getElementById("messageInput").focus();
+        scrollToBottom();
+      });
+
+      // Update send button state
+      textarea.addEventListener("input", function () {
+        const sendBtn = document.getElementById("sendBtn");
+        sendBtn.disabled = !this.value.trim();
+      });
+    </script>
+  </body>
+</html>

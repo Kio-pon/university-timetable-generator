@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      {% if is_selected_sections %}Selected Sections Export{% else %}Timetable
+      Combinations Export{% endif %}
+    </title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .export-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .csv-preview {
+        background-color: #2d3748;
+        color: #e2e8f0;
+        padding: 20px;
+        border-radius: 8px;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        margin: 20px 0;
+      }
+      .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .btn-download {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        transition: transform 0.2s ease;
+      }
+      .btn-download:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+      }
+      .table-container {
+        max-height: 600px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+      }
+      .table {
+        margin-bottom: 0;
+      }
+      .table th {
+        background-color: #495057;
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .combination-separator {
+        background-color: #f8f9fa !important;
+        font-weight: bold;
+        text-align: center;
+      }
+      .summary-box {
+        background-color: #e9ecef;
+        border-left: 4px solid #007bff;
+        padding: 15px;
+        margin: 20px 0;
+        white-space: pre-line;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="export-container">
+      <div class="row">
+        <div class="col-md-12">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            {% if is_selected_sections %}
+            <h1 class="display-4">📋 Selected Sections Export</h1>
+            {% else %}
+            <h1 class="display-4">📊 Timetable Combinations Export</h1>
+            {% endif %}
+            <a href="/" class="btn btn-outline-primary">← Back to Generator</a>
+          </div>
+
+          {% if error %}
+          <div class="alert alert-warning" role="alert">
+            <h4 class="alert-heading">⚠️ No Data Available</h4>
+            <p>{{ error }}</p>
+            <hr />
+            <p class="mb-0">
+              Please go back and generate some timetable combinations first.
+            </p>
+          </div>
+          {% else %}
+          <!-- Statistics Card -->
+          <div class="stats-card">
+            <div class="row">
+              {% if is_selected_sections %}
+              <div class="col-md-4">
+                <h3>
+                  {{ total_combinations if total_combinations else 'N/A' }}
+                </h3>
+                <p class="mb-0">Selected Sections</p>
+              </div>
+              <div class="col-md-4">
+                <h3>{{ stats.selected_courses|length if stats else 'N/A' }}</h3>
+                <p class="mb-0">Selected Courses</p>
+              </div>
+              <div class="col-md-4">
+                <h3>{{ filename.split('_')[2].split('.')[0] }}</h3>
+                <p class="mb-0">Export Time</p>
+              </div>
+              {% else %}
+              <div class="col-md-3">
+                <h3>{{ stats.total_combinations }}</h3>
+                <p class="mb-0">Total Combinations</p>
+              </div>
+              <div class="col-md-3">
+                <h3>{{ stats.courses_per_combination }}</h3>
+                <p class="mb-0">Courses per Combination</p>
+              </div>
+              <div class="col-md-3">
+                <h3>{{ stats.selected_courses|length }}</h3>
+                <p class="mb-0">Selected Courses</p>
+              </div>
+              <div class="col-md-3">
+                <h3>{{ filename.split('_')[2].split('.')[0] }}</h3>
+                <p class="mb-0">Generated Time</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          <!-- Download Section -->
+          <div class="card mb-4">
+            <div class="card-body text-center">
+              {% if is_selected_sections %}
+              <h5 class="card-title">📥 Download Your Selected Sections</h5>
+              <p class="card-text">
+                Export your filtered course sections as a CSV file for further
+                analysis or sharing.
+              </p>
+              <a href="/export/selected-sections/download" class="btn-download">
+                📊 Download Selected Sections CSV ({{ filename }})
+              </a>
+              {% else %}
+              <h5 class="card-title">📥 Download Your Combinations</h5>
+              <p class="card-text">
+                Export all timetable combinations as a CSV file for further
+                analysis or sharing.
+              </p>
+              <a href="/export/combinations/download" class="btn-download">
+                📊 Download CSV File ({{ filename }})
+              </a>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="summary-box">
+            <h5>📋 Export Summary</h5>
+            {{ summary }}
+          </div>
+
+          <!-- CSV Preview -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">📄 CSV Content Preview</h5>
+              <small class="text-muted">First 50 lines of the CSV file</small>
+            </div>
+            <div class="card-body p-0">
+              <div class="csv-preview">
+                {{ csv_content.split('\n')[:50]|join('\n') }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Table Preview -->
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">📋 Table Preview</h5>
+              <small class="text-muted"
+                >Interactive view of your combinations</small
+              >
+            </div>
+            <div class="card-body p-0">
+              <div class="table-container">{{ html_table|safe }}</div>
+            </div>
+          </div>
+
+          <!-- Course Information -->
+          <div class="row mt-4">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header">
+                  <h6 class="mb-0">📚 Selected Courses</h6>
+                </div>
+                <div class="card-body">
+                  <ul class="list-group list-group-flush">
+                    {% for course in stats.selected_courses %}
+                    <li class="list-group-item d-flex justify-content-between">
+                      <span>{{ course }}</span>
+                      <span class="badge bg-primary"
+                        >{{ stats.sections_per_course[course] }} sections</span
+                      >
+                    </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header">
+                  <h6 class="mb-0">📊 Export Details</h6>
+                </div>
+                <div class="card-body">
+                  <table class="table table-sm">
+                    <tr>
+                      <td><strong>File Name:</strong></td>
+                      <td>{{ filename }}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Generated:</strong></td>
+                      <td>{{ stats.generation_time }}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Total Rows:</strong></td>
+                      <td>{{ csv_content.split('\n')|length - 1 }}</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Format:</strong></td>
+                      <td>CSV (Comma-Separated Values)</td>
+                    </tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Usage Instructions -->
+          <div class="alert alert-info mt-4" role="alert">
+            <h5 class="alert-heading">💡 How to Use This Export</h5>
+            <p>
+              Your CSV file contains all {{ total_combinations }} possible
+              timetable combinations:
+            </p>
+            <ul>
+              <li>
+                <strong>Combination_Number:</strong> Groups courses that belong
+                to the same timetable
+              </li>
+              <li>
+                <strong>Course_Code, Section:</strong> Identifies each specific
+                course section
+              </li>
+              <li>
+                <strong>Day, Start_Time, End_Time:</strong> When and where
+                classes meet
+              </li>
+              <li>
+                <strong>Instructor, Room:</strong> Additional class details
+              </li>
+            </ul>
+            <p class="mb-0">
+              You can open this file in Excel, Google Sheets, or any spreadsheet
+              application for further analysis.
+            </p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Add striping to combination separators
+      document.addEventListener("DOMContentLoaded", function () {
+        const rows = document.querySelectorAll("table tr");
+        rows.forEach((row) => {
+          const firstCell = row.querySelector("td");
+          if (
+            firstCell &&
+            firstCell.textContent.includes("End of Combination")
+          ) {
+            row.classList.add("combination-separator");
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
