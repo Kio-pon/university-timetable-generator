@@ -21,6 +21,9 @@ import tempfile
 import shutil
 import csv
 
+# Import the file processor function
+from progress_archive.file_processor import process_uploaded_file, extract_section_type
+
 app = FastAPI(title="University Timetable Generator", version="1.0.0")
 
 # Setup templates
@@ -51,6 +54,9 @@ class TimetableGenerator:
         self.section_pairs = {}  # pair_id -> list of (course, section) tuplesGO
         self.pair_lookup = {}    # (course, section) -> pair_id
         self.pair_counter = 0    # for generating unique pair IDs
+        
+        # 🎯 AUTO-LOAD CSV ON STARTUP
+        self.load_embedded_data()
         
     def load_data(self, file_content: bytes, filename: str):
         """Load course data from CSV or Excel file content"""
@@ -452,89 +458,6 @@ class TimetableGenerator:
         
         self.valid_combinations = valid_combinations
         return valid_combinations    
-    
-    def generate_combinations_csv(self):
-        """Generate CSV content with all timetable combinations"""
-        if not self.valid_combinations:
-            return None, "No valid combinations generated yet"
-        
-        csv_data = []
-        
-        for i, combination in enumerate(self.valid_combinations, 1):
-            # For each combination, create rows for each course section
-            base_row = {
-                'Combination_Number': i,
-                'Total_Courses': len(combination),
-                'Course_Code': '',
-                'Section': '',
-                'Title': '',
-                'Day': '',
-                'Start_Time': '',
-                'End_Time': '',
-                'Instructor': '',
-                'Room': ''
-            }              # Add a row for each course in the combination
-            # Based on debug output: combination is a list of (course_code, section, section_data) tuples
-            for course_code, section, section_data in combination:
-                # Use the section_data that's already available
-                if len(section_data) > 0:
-                    # If multiple time slots for the same section, create multiple rows
-                    for _, row in section_data.iterrows():
-                        csv_row = base_row.copy()
-                        csv_row.update({
-                            'Course_Code': self.format_course_code_for_display(course_code),
-                            'Section': section,
-                            'Title': row.get('Title', ''),
-                            'Day': row.get('Day', ''),
-                            'Start_Time': row.get('Start', ''),
-                            'End_Time': row.get('End', ''),
-                            'Instructor': row.get('Instructor / Sponsor', ''),
-                            'Room': row.get('Room', row.get('Location', 'TBA'))
-                        })
-                        csv_data.append(csv_row)
-            
-            # Add a separator row between combinations
-            if i < len(self.valid_combinations):
-                separator_row = {key: '' for key in base_row.keys()}
-                separator_row['Combination_Number'] = f'--- End of Combination {i} ---'
-                csv_data.append(separator_row)
-        
-        # Convert to DataFrame and then to CSV
-        df = pd.DataFrame(csv_data)
-        
-        # Generate CSV content
-        csv_content = df.to_csv(index=False)
-        
-        # Generate summary
-        summary = f"""
-TIMETABLE COMBINATIONS EXPORT SUMMARY
-=====================================
-Total Combinations: {len(self.valid_combinations)}
-Total Courses per Combination: {len(self.valid_combinations[0]) if self.valid_combinations else 0}
-Export Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-CSV Format:
-- Each row represents one course section in a combination
-- Combination_Number groups sections that belong together
-- Multiple rows with same Combination_Number = one complete timetable
-"""
-        
-        return csv_content, summary
-
-    def get_combinations_stats(self):
-        """Get statistics about generated combinations"""
-        if not self.valid_combinations:
-            return None
-        
-        stats = {
-            'total_combinations': len(self.valid_combinations),
-            'courses_per_combination': len(self.valid_combinations[0]) if self.valid_combinations else 0,
-            'selected_courses': list(self.selected_courses.keys()),
-            'sections_per_course': {course: len(sections) for course, sections in self.selected_courses.items()},
-            'generation_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        return stats
 
     def _is_valid_combination(self, combination):
         """Check if a combination of courses is valid (no duplicate courses, no time conflicts, and smart section pairing)"""
@@ -572,9 +495,15 @@ CSV Format:
         courses_info = []
         
         for course_code, section, course_data in combination:
+            # Skip header rows (where Course Code = 'Name')
+            course_data_clean = course_data[course_data['Course Code'] != 'Name']
+            
+            if len(course_data_clean) == 0:
+                continue
+                
             course_info = f"{course_code} {section}"
-            title = course_data['Title'].iloc[0]
-            instructor = course_data['Instructor / Sponsor'].iloc[0]
+            title = course_data_clean['Title'].iloc[0]
+            instructor = course_data_clean['Instructor / Sponsor'].iloc[0]
             
             courses_info.append({
                 'course': course_info,
@@ -583,21 +512,24 @@ CSV Format:
             })
             
             # Add to schedule
-            for _, row in course_data.iterrows():
+            for _, row in course_data_clean.iterrows():
                 for day in row['Days_List']:
-                    time_slot = f"{row['Start']}-{row['End']}"
-                    room = row['Room'] if 'Room' in row else 'TBA'
-                    schedule[day].append({
-                        'course': course_info,
-                        'title': title,
-                        'time': time_slot,
-                        'room': room,
-                        'instructor': instructor,
-                        'start_24h': row['Start_24h'],
-                        'end_24h': row['End_24h'],
-                        'start_time': row['Start'],
-                        'end_time': row['End']
-                    })
+                    if day in schedule:  # Only add valid weekdays
+                        time_slot = f"{row['Start']}-{row['End']}"
+                        room = row['Room'] if 'Room' in row else 'TBA'
+                        schedule_item = {
+                            'course': course_code,
+                            'section': section,
+                            'title': title,
+                            'time': time_slot,
+                            'room': room,
+                            'instructor': instructor,
+                            'start_24h': row['Start_24h'],
+                            'end_24h': row['End_24h'],
+                            'start': row['Start'],
+                            'end': row['End']
+                        }
+                        schedule[day].append(schedule_item)
         
         # Sort each day by start time
         for day in schedule:
@@ -909,6 +841,48 @@ CSV Format:
         # If no training data exists, allow it (fallback to auto-prediction logic)
         return True
 
+    def load_embedded_data(self):
+        """Load CSV data from the same folder automatically"""
+        try:
+            # Look for the CSV file in the same directory
+            csv_file_path = "Schedule(Sheet1) (3).csv"
+            
+            if os.path.exists(csv_file_path):
+                print(f"🔄 Loading embedded CSV: {csv_file_path}")
+                
+                # Read the CSV file
+                original_df = pd.read_csv(csv_file_path)
+                
+                # Process the data using the integrated processor
+                print("Running file processor to split courses with multiple section types...")
+                processed_df, split_courses = process_uploaded_file(original_df)
+                
+                # Use the processed data
+                self.course_data = processed_df
+                self.current_file_path = csv_file_path
+                
+                # Clean and validate data
+                self._clean_data()
+                
+                # STEP 1 & 2: Auto-detect course pairs and section pairings
+                self.auto_detect_course_pairs()
+                
+                # Log processing results
+                if split_courses:
+                    print(f"File processing complete. {len(split_courses)} courses were split.")
+                else:
+                    print("File processing complete. No courses needed splitting.")
+                
+                print(f"✅ Successfully loaded {len(self.get_courses_with_titles())} courses from embedded CSV")
+                return True
+            else:
+                print(f"❌ CSV file not found: {csv_file_path}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error loading embedded CSV: {e}")
+            return False
+
 # Initialize global generator
 current_generator = TimetableGenerator()
 
@@ -916,6 +890,11 @@ current_generator = TimetableGenerator()
 async def read_root(request: Request):
     """Main page"""
     return templates.TemplateResponse("scheduler.html", {"request": request})
+
+@app.get("/timetable-viewer", response_class=HTMLResponse)
+async def timetable_viewer(request: Request):
+    """Timetable viewer page"""
+    return templates.TemplateResponse("timetable_viewer.html", {"request": request})
 
 @app.get("/status")
 async def get_status():
@@ -1128,17 +1107,24 @@ async def generate_timetables():
                 formatted['id'] = i + 1
                 formatted_combinations.append(formatted)
             
+            # Include active timetable information for the first combination
+            active_timetable = None
+            if formatted_combinations:
+                active_timetable = formatted_combinations[0]
+            
             return {
                 "success": True,
                 "count": len(combinations),
-                "timetables": formatted_combinations
+                "timetables": formatted_combinations,
+                "active_timetable": active_timetable  # This will be displayed automatically
             }
         else:
             return {
                 "success": False,
                 "message": "No valid timetables found with current selections",
                 "count": 0,
-                "timetables": []
+                "timetables": [],
+                "active_timetable": None
             }
             
     except Exception as e:
@@ -1172,505 +1158,7 @@ async def get_selected_courses():
     """Get currently selected courses"""
     global current_generator
     return {"selected_courses": current_generator.selected_courses}
-
-@app.get("/export/combinations")
-async def get_combinations_export():
-    """Get combinations export data for display"""
-    global current_generator
-    
-    if not current_generator.valid_combinations:
-        raise HTTPException(status_code=400, detail="No combinations generated yet. Please generate combinations first.")
-    
-    csv_content, summary = current_generator.generate_combinations_csv()
-    stats = current_generator.get_combinations_stats()
-    
-    return {
-        "csv_content": csv_content,
-        "summary": summary,
-        "stats": stats,
-        "filename": f"timetable_combinations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    }
-
-@app.get("/export/combinations/download")
-async def download_combinations_csv():
-    """Download combinations as CSV file"""
-    global current_generator
-    
-    if not current_generator.valid_combinations:
-        raise HTTPException(status_code=400, detail="No combinations generated yet")
-    
-    csv_content, _ = current_generator.generate_combinations_csv()
-    filename = f"timetable_combinations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    from fastapi.responses import Response
-    
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-@app.get("/export/combinations/preview", response_class=HTMLResponse)
-async def preview_combinations_export(request: Request):
-    """Preview combinations export in HTML format"""
-    global current_generator
-    
-    if not current_generator.valid_combinations:
-        return templates.TemplateResponse("export_preview.html", {
-            "request": request,
-            "error": "No combinations generated yet. Please generate combinations first."
-        })
-    
-    csv_content, summary = current_generator.generate_combinations_csv()
-    stats = current_generator.get_combinations_stats()
-    
-    # Convert CSV to HTML table for preview
-    df = pd.read_csv(io.StringIO(csv_content))
-    html_table = df.to_html(classes="table table-striped table-bordered", index=False)
-    
-    filename = f"timetable_combinations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    return templates.TemplateResponse("export_preview.html", {
-        "request": request,
-        "csv_content": csv_content,
-        "html_table": html_table,
-        "summary": summary,
-        "stats": stats,
-        "filename": filename,
-        "total_combinations": len(current_generator.valid_combinations)    })
-
-def generate_selected_sections_csv():
-    """Generate CSV content for selected sections only"""
-    global current_generator
-    
-    if current_generator.course_data is None or not current_generator.selected_courses:
-        return ""
-    
-    # Get original column headers from the uploaded data, excluding internal processing columns
-    all_headers = list(current_generator.course_data.columns)
-    excluded_columns = ['Start_24h', 'End_24h', 'Days_List', 'Course_Section']
-    headers = [header for header in all_headers if header not in excluded_columns]
-    
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=headers)
-    writer.writeheader()
-    
-    # Write only selected sections
-    for _, row in current_generator.course_data.iterrows():
-        course_code = row.get('Course Code', '')
-        section = row.get('Section', '')
-        
-        # Check if this section is selected
-        if course_code in current_generator.selected_courses:
-            if section in current_generator.selected_courses[course_code]:
-                # Create a filtered row dictionary without the excluded columns
-                filtered_row = {key: value for key, value in row.to_dict().items() if key in headers}
-                writer.writerow(filtered_row)
-    
-    return output.getvalue()
-
-@app.get("/export/selected-sections/download")
-async def download_selected_sections_csv():
-    """Download selected sections as CSV file"""
-    global current_generator
-    
-    if current_generator.course_data is None:
-        raise HTTPException(status_code=400, detail="No course data available")
-    
-    if not current_generator.selected_courses:
-        raise HTTPException(status_code=400, detail="No sections selected")
-    
-    # Create CSV content with only selected sections
-    csv_content = generate_selected_sections_csv()
-    filename = f"selected_sections_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    from fastapi.responses import Response
-    
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-@app.get("/export/selected-sections/preview", response_class=HTMLResponse)
-async def preview_selected_sections_export(request: Request):
-    """Preview selected sections export in HTML format"""
-    global current_generator
-    
-    if current_generator.course_data is None:
-        return templates.TemplateResponse("export_preview.html", {
-            "request": request,
-            "error": "No course data available. Please upload a file first."
-        })
-    
-    if not current_generator.selected_courses:
-        return templates.TemplateResponse("export_preview.html", {
-            "request": request,
-            "error": "No sections selected. Please select some course sections first."
-        })
-    
-    csv_content = generate_selected_sections_csv()
-    
-    # Convert CSV to HTML table for preview
-    df = pd.read_csv(io.StringIO(csv_content))
-    html_table = df.to_html(classes="table table-striped table-bordered", index=False)
-    
-    filename = f"selected_sections_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-      # Create summary
-    total_sections = len(df)
-    selected_courses_count = len(current_generator.selected_courses)
-    
-    summary = f"Selected {total_sections} sections from {selected_courses_count} courses"
-      # Create stats object for template compatibility
-    sections_per_course = {}
-    for course, sections in current_generator.selected_courses.items():
-        sections_per_course[course] = len(sections)
-    
-    stats = {
-        "selected_courses": current_generator.selected_courses.keys(),
-        "sections_per_course": sections_per_course,
-        "total_sections": total_sections,
-        "total_courses": selected_courses_count
-    }
-    
-    return templates.TemplateResponse("export_preview.html", {
-        "request": request,
-        "csv_content": csv_content,
-        "html_table": html_table,
-        "summary": summary,
-        "stats": stats,
-        "filename": filename,
-        "total_combinations": 0,  # Not applicable for selected sections
-        "is_selected_sections": True
-    })
-
-@app.get("/ai-preferences", response_class=HTMLResponse)
-async def ai_preferences(request: Request):
-    """AI Preferences page for intelligent timetable generation"""
-    global current_generator
-    
-    # Check if data is loaded
-    if current_generator.course_data is None:
-        return templates.TemplateResponse("scheduler.html", {
-            "request": request,
-            "error": "No course data available. Please upload a file first."
-        })
-    
-    # Check if courses are selected
-    if not current_generator.selected_courses:
-        return templates.TemplateResponse("scheduler.html", {
-            "request": request,
-            "error": "No courses selected. Please select courses first."
-        })
-    
-    return templates.TemplateResponse("ai_preferences.html", {
-        "request": request,
-        "selected_courses": current_generator.selected_courses,
-        "total_courses": len(current_generator.selected_courses)
-    })
-
-@app.post("/ai-preferences")
-async def handle_ai_preferences(request: Request):
-    """Handle AI timetable generation with preferences"""
-    global current_generator
-    
-    if current_generator.course_data is None:
-        raise HTTPException(status_code=400, detail="No course data available")
-    
-    if not current_generator.selected_courses:
-        raise HTTPException(status_code=400, detail="No courses selected")
-    
-    try:
-        # Get preferences from request body
-        preferences = await request.json()
-        
-        # For now, we'll use the manual generation but with preference-based filtering
-        # In the future, this is where AI logic would be implemented
-        
-        # Generate combinations using current manual method
-        combinations = current_generator.generate_combinations()
-        
-        if combinations:
-            # Apply preference-based scoring/filtering (basic implementation)
-            scored_combinations = score_combinations_by_preferences(combinations, preferences)
             
-            # Return top combinations based on preferences
-            top_combinations = scored_combinations[:min(10, len(scored_combinations))]
-            
-            return {
-                "success": True,
-                "combinations": top_combinations,
-                "total_generated": len(combinations),
-                "preferences_applied": preferences,
-                "message": f"Generated {len(top_combinations)} optimized timetable combinations based on your preferences"
-            }
-        else:
-            return {
-                "success": False,
-                "error": "No valid combinations could be generated with your selected courses"
-            }
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing AI preferences: {str(e)}")
-
-def score_combinations_by_preferences(combinations, preferences):
-    """Score combinations based on user preferences (basic implementation)"""
-    scored_combinations = []
-    
-    for combination in combinations:
-        score = 0
-        
-        # Basic scoring based on preferences
-        # This is a simplified implementation - full AI would be much more sophisticated
-        
-        # Time preferences scoring
-        if preferences.get('avoid_early_morning', False):
-            early_classes = check_early_morning_classes(combination)
-            score += (10 - early_classes * 2)  # Penalize early morning classes
-            
-        if preferences.get('avoid_late_evening', False):
-            late_classes = check_late_evening_classes(combination)
-            score += (10 - late_classes * 2)  # Penalize late evening classes
-            
-        # Gap preferences scoring
-        if preferences.get('avoid_long_gaps', False):
-            long_gaps = count_long_gaps(combination)
-            score += (10 - long_gaps * 3)  # Heavily penalize long gaps
-            
-        # Day distribution scoring
-        if preferences.get('minimize_commute', False):
-            unique_days = count_unique_days(combination)
-            score += (15 - unique_days * 2)  # Favor fewer days on campus
-            
-        # Lunch break scoring
-        if preferences.get('lunch_break', False):
-            has_lunch_conflict = check_lunch_conflicts(combination)
-            score += 0 if has_lunch_conflict else 5  # Bonus for preserving lunch
-            
-        scored_combinations.append({
-            'combination': combination,
-            'score': max(score, 0),  # Ensure non-negative scores
-            'details': get_combination_details(combination)
-        })
-    
-    # Sort by score (highest first)
-    return sorted(scored_combinations, key=lambda x: x['score'], reverse=True)
-
-def check_early_morning_classes(combination):
-    """Count classes before 9 AM"""
-    count = 0
-    for course_code, section, section_data in combination:
-        for _, row in section_data.iterrows():
-            start_time = row.get('Start_24h')
-            if start_time and start_time.hour < 9:
-                count += 1
-    return count
-
-def check_late_evening_classes(combination):
-    """Count classes after 6 PM"""
-    count = 0
-    for course_code, section, section_data in combination:
-        for _, row in section_data.iterrows():
-            start_time = row.get('Start_24h')
-            if start_time and start_time.hour >= 18:
-                count += 1
-    return count
-
-def count_long_gaps(combination):
-    """Count gaps longer than 2 hours"""
-    # This is a simplified implementation
-    # A full implementation would analyze the actual schedule
-    return 0  # Placeholder
-
-def count_unique_days(combination):
-    """Count unique days in the combination"""
-    days = set()
-    for course_code, section, section_data in combination:
-        for _, row in section_data.iterrows():
-            if 'Days_List' in row and row['Days_List']:
-                days.update(row['Days_List'])
-    return len(days)
-
-def check_lunch_conflicts(combination):
-    """Check if any classes conflict with lunch time (12-1 PM)"""
-    for course_code, section, section_data in combination:
-        for _, row in section_data.iterrows():
-            start_time = row.get('Start_24h')
-            end_time = row.get('End_24h')
-            if start_time and end_time:
-                # Check if class overlaps with 12-1 PM
-                if (start_time.hour < 13 and end_time.hour > 12):
-                    return True
-    return False
-
-def get_combination_details(combination):
-    """Get readable details for a combination"""
-    details = {
-        'courses': [],
-        'total_hours': 0,
-        'days_used': set()
-    }
-    
-    for course_code, section, section_data in combination:
-        course_info = {
-            'code': course_code,
-            'section': section,
-            'schedule': []
-        }
-        
-        for _, row in section_data.iterrows():
-            if 'Days_List' in row and row['Days_List']:
-                details['days_used'].update(row['Days_List'])
-                course_info['schedule'].append({
-                    'days': row['Days_List'],
-                    'time': f"{row.get('Start', '')} - {row.get('End', '')}",
-                    'location': row.get('Room', 'TBA')
-                })
-        
-        details['courses'].append(course_info)
-    
-    details['days_used'] = list(details['days_used'])
-    return details
-
-# Excel file processor functions
-def extract_section_type(section):
-    """
-    Extract the section type (letter part) from a section code.
-    E.g., 'L1' -> 'L', 'R2' -> 'R', 'T1' -> 'T', 'S18' -> 'S'
-    """
-    match = re.match(r'^([A-Za-z]+)', str(section).strip())
-    return match.group(1) if match else None
-
-def process_uploaded_file(df):
-    """
-    Process the uploaded DataFrame to split courses with multiple section types
-    and ensure correct headers are present.
-    """
-    print(f"Processing uploaded file with {len(df)} rows")
-    print(f"Original columns: {list(df.columns)}")
-    
-    # Required headers in the correct order
-    required_headers = ['Course Code', 'Section', 'Title', 'Day', 'Start', 'End', 'Room', 'Instructor / Sponsor']
-    
-    # Check if the current column headers match the required headers
-    current_headers = list(df.columns)
-    
-    if current_headers != required_headers:
-        print("Headers don't match required format. Adding proper headers and pushing data down...")
-        
-        # Create a new DataFrame with proper headers
-        # First, convert the current DataFrame to a list of rows (including current headers as first row)
-        all_rows = []
-        
-        # Add current column headers as the first data row
-        all_rows.append(current_headers)
-        
-        # Add all existing data rows
-        for _, row in df.iterrows():
-            all_rows.append(row.tolist())
-        
-        # Create new DataFrame with required headers and all data pushed down
-        new_df = pd.DataFrame(all_rows, columns=required_headers[:len(current_headers)])
-        
-        # If we have fewer columns than required, add empty columns
-        for i, header in enumerate(required_headers):
-            if i >= len(current_headers):
-                new_df[header] = ''
-        
-        # Reorder columns to match required order
-        df = new_df[required_headers]
-        
-        print(f"Added proper headers: {required_headers}")
-        print(f"Data rows increased from {len(df)-len(all_rows)} to {len(df)} (headers became data)")
-    else:
-        print("Headers are already in the correct format.")
-    
-    # Group courses by course code to find section types
-    course_sections = defaultdict(set)
-    for index, row in df.iterrows():
-        course_code = str(row['Course Code']).strip()
-        # Skip empty or invalid course codes
-        if not course_code or course_code.lower() in ['nan', 'course code']:
-            continue
-            
-        # Replace forward slashes with pipe symbol for URL compatibility
-        course_code = course_code.replace('/', '|')
-        section = str(row['Section']).strip()
-        section_type = extract_section_type(section)
-        
-        if section_type:
-            course_sections[course_code].add(section_type)
-    
-    # Find courses with multiple section types
-    courses_with_multiple_types = {
-        course: types for course, types in course_sections.items() 
-        if len(types) > 1
-    }
-    
-    print(f"Found {len(courses_with_multiple_types)} courses with multiple section types:")
-    for course, types in courses_with_multiple_types.items():
-        print(f"  {course}: {sorted(types)}")
-    
-    # Create a new DataFrame with split course codes
-    new_rows = []
-    for index, row in df.iterrows():
-        course_code = str(row['Course Code']).strip()
-        
-        # Skip empty or invalid course codes (like header rows that became data)
-        if not course_code or course_code.lower() in ['nan', 'course code']:
-            continue
-            
-        # Replace forward slashes with pipe symbol for URL compatibility
-        course_code = course_code.replace('/', '|')
-        section = str(row['Section']).strip()
-        section_type = extract_section_type(section)
-        
-        # Create new row with modified course code
-        new_row = row.copy()
-        new_row['Course Code'] = course_code  # Update with cleaned course code
-        
-        if course_code in courses_with_multiple_types and section_type:
-            # Split the course code by adding the section type
-            new_course_code = f"{course_code}{section_type}"
-            new_row['Course Code'] = new_course_code
-            print(f"Modified: {course_code} (section {section}) -> {new_course_code}")
-        
-        new_rows.append(new_row)
-    
-    # Create new DataFrame with processed data
-    processed_df = pd.DataFrame(new_rows)
-    
-    print(f"Processing complete:")
-    print(f"Final columns: {list(processed_df.columns)}")
-    print(f"Valid data rows: {len(processed_df)}")
-    print(f"Original courses: {len(course_sections)}")
-    print(f"Courses with multiple section types: {len(courses_with_multiple_types)}")
-    
-    return processed_df, courses_with_multiple_types
-
-@app.get("/export/processed-file/download")
-async def download_processed_file():
-    """Download the processed version of the uploaded file"""
-    global current_generator
-    
-    if current_generator.course_data is None:
-        raise HTTPException(status_code=400, detail="No course data available")
-    
-    # Generate CSV content from the processed data
-    output = io.StringIO()
-    current_generator.course_data.to_csv(output, index=False)
-    csv_content = output.getvalue()
-    
-    filename = f"processed_{current_generator.current_file_path or 'file'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    from fastapi.responses import Response
-    
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
 @app.get("/auto-pairs")
 async def get_auto_pairs():
     """Get discovered course pairs from Step 1"""
@@ -1708,60 +1196,52 @@ async def get_section_suggestions(course_code: str):
     # Check if this course has a pair
     if course_code in current_generator.course_pairs:
         paired_course = current_generator.course_pairs[course_code]
+        source_sections = current_generator.selected_courses.get(course_code, [])
         
-        # Get current selections for this course
-        current_selections = current_generator.selected_courses.get(course_code, [])
-        
-        if current_selections:
-            # Find compatible sections
+        if source_sections:
+            # Find compatible sections for the paired course
             compatible_sections = current_generator.find_compatible_sections(
-                course_code, current_selections, paired_course
+                source_course=course_code,
+                source_sections=source_sections,
+                target_course=paired_course
             )
-            
             suggestions[paired_course] = compatible_sections
     
     return {
         "success": True,
-        "suggestions": suggestions,
-        "paired_course": current_generator.course_pairs.get(course_code, None)
+        "suggestions": suggestions
     }
 
 @app.post("/validate-selection")
 async def validate_selection(request: Request):
-    """Validate section selection against learned pairing rules"""
+    """Validate selected sections for compatibility"""
     global current_generator
     
     data = await request.json()
     course_code = data.get("course_code")
-    sections = data.get("sections", [])
+    selected_sections = data.get("selected_sections", [])
     
-    if not course_code or not sections:
-        raise HTTPException(status_code=400, detail="Course code and sections are required")
+    if not course_code:
+        raise HTTPException(status_code=400, detail="Course code is required")
     
-    validation_result = {
-        "is_valid": True,
-        "warnings": [],
-        "suggestions": [],
-        "paired_course": None
+    # Get current selections without the new selection
+    current_selections = current_generator.selected_courses.copy()
+    if course_code in current_selections:
+        del current_selections[course_code]
+    
+    # Add the new selection temporarily
+    temp_selections = {course_code: selected_sections}
+    
+    # Validate all combinations
+    all_valid = True
+    conflicts = []
+    
+    return {
+        "success": True,
+        "is_valid": all_valid,
+        "conflicts": conflicts
     }
     
-    # Check if course has a pair
-    if course_code in current_generator.course_pairs:
-        paired_course = current_generator.course_pairs[course_code]
-        validation_result["paired_course"] = paired_course
-        
-        # Get compatible sections
-        compatible_sections = current_generator.find_compatible_sections(
-            course_code, sections, paired_course
-        )
-        
-        if compatible_sections:
-            validation_result["suggestions"] = compatible_sections
-        else:
-            validation_result["warnings"].append(f"No compatible sections found for {paired_course}")
-    
-    return validation_result
-
 if __name__ == "__main__":
     import uvicorn
     import os

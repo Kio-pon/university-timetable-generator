@@ -26,16 +26,16 @@
       }
 
       body {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: white;
         min-height: 100vh;
+        margin: 0;
+        padding: 0;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       }
 
       .main-container {
         background: white;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-        margin: 20px;
+        min-height: 100vh;
         overflow: hidden;
       }
 
@@ -798,10 +798,30 @@
     <div class="main-container">
       <!-- Header -->
       <div class="header">
-        <h1>
-          <i class="fas fa-graduation-cap"></i> University Timetable Generator
-        </h1>
-        <p>Create optimized class schedules from your course data</p>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1>
+              <i class="fas fa-graduation-cap"></i> University Timetable
+              Generator
+            </h1>
+            <p>Create optimized class schedules from your course data</p>
+          </div>
+          <div>
+            <button
+              class="btn btn-light"
+              onclick="showUploadNewFile()"
+              id="header-upload-btn"
+              style="
+                border: 2px solid #fff;
+                font-weight: 600;
+                color: #475569;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+              "
+            >
+              <i class="fas fa-upload"></i> Upload New CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Step Indicator -->
@@ -847,25 +867,6 @@
         </div>
 
         <!-- Compact Upload Section (shown after file is uploaded) -->
-        <div
-          id="compact-upload-section"
-          class="section-card"
-          style="display: none"
-        >
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <i class="fas fa-file-check text-success"></i>
-              <span class="ms-2">CSV file uploaded successfully</span>
-            </div>
-            <button
-              class="btn btn-outline-primary btn-sm"
-              onclick="showUploadNewFile()"
-            >
-              <i class="fas fa-upload"></i> Upload New CSV
-            </button>
-          </div>
-        </div>
-
         <!-- Step 2: Course Selection -->
         <div
           id="course-selection-section"
@@ -907,13 +908,15 @@
             </div>
             <!-- Selected Courses Summary -->
             <div class="col-md-4">
-              <div class="d-flex justify-content-between align-items-center mb-2">
+              <div
+                class="d-flex justify-content-between align-items-center mb-2"
+              >
                 <h5><i class="fas fa-check-circle"></i> Selected Courses</h5>
-                <button 
-                  class="btn btn-outline-danger btn-sm" 
+                <button
+                  class="btn btn-outline-danger btn-sm"
                   onclick="clearRoster()"
                   id="clearSelectionsBtn"
-                  style="display: none;"
+                  style="display: none"
                 >
                   <i class="fas fa-broom"></i> Clear
                 </button>
@@ -926,30 +929,17 @@
 
           <!-- Generate Buttons Section -->
           <div class="row mt-4">
-            <div class="col-md-6 text-center">
+            <div class="col-12 text-center">
               <button
-                class="btn btn-success btn-lg w-75"
+                class="btn btn-success btn-lg"
                 onclick="generateTimetablesManually()"
                 disabled
                 id="generateManualBtn"
               >
-                <i class="fas fa-cogs"></i> Generate Timetable Manually
+                <i class="fas fa-cogs"></i> Generate Timetables
               </button>
               <p class="text-muted mt-2">
-                Do it manually if you are sure about your timetable
-              </p>
-            </div>
-            <div class="col-md-6 text-center">
-              <button
-                class="btn btn-primary btn-lg w-75"
-                onclick="generateTimetablesByAI()"
-                disabled
-                id="generateAIBtn"
-              >
-                <i class="fas fa-robot"></i> Generate Timetable by AI
-              </button>
-              <p class="text-muted mt-2">
-                Click this if you are unsure about your timetable
+                Generate all possible valid timetable combinations
               </p>
             </div>
           </div>
@@ -968,41 +958,6 @@
               <i class="fas fa-calendar-alt text-primary"></i> Generated
               Timetables
             </h3>
-            <div class="dropdown" id="exportDropdown" style="display: none">
-              <button
-                class="btn btn-outline-success btn-sm dropdown-toggle"
-                type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                <i class="fas fa-download"></i> Export Options
-              </button>
-              <ul class="dropdown-menu">
-                <li>
-                  <a class="dropdown-item" href="/export/combinations/preview">
-                    <i class="fas fa-calendar-alt"></i> Export Timetable
-                    Combinations
-                  </a>
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item"
-                    href="/export/selected-sections/preview"
-                  >
-                    <i class="fas fa-filter"></i> Export Selected Sections Only
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider" /></li>
-                <li>
-                  <a
-                    class="dropdown-item"
-                    href="/export/processed-file/download"
-                  >
-                    <i class="fas fa-file-export"></i> Download Processed File
-                  </a>
-                </li>
-              </ul>
-            </div>
           </div>
           <div id="resultsContainer">
             <div class="no-results">
@@ -1083,10 +1038,8 @@
           const response = await fetch("/status");
           const status = await response.json();
           if (status.data_loaded) {
-            // Hide upload section and show compact section
+            // Hide upload section
             document.getElementById("upload-section").style.display = "none";
-            document.getElementById("compact-upload-section").style.display =
-              "block";
 
             // Restore courses data
             currentCourses = status.courses;
@@ -1108,7 +1061,7 @@
                 "block";
             }
 
-            // If combinations exist, enable export
+            // If combinations exist, show results
             if (status.has_combinations) {
               updateStep(4);
               document.getElementById("results-section").style.display =
@@ -1125,7 +1078,7 @@
       }
 
       async function handleFile(file, shouldClearFirst = null) {
-        // 🧹 STEP 1: Handle data clearing logic
+        // 🧹 STEP 1: Handle data clearing logic - only when file is actually selected
         if (shouldClearFirst === null) {
           // Check if there's existing data
           const hasData =
@@ -1134,19 +1087,22 @@
 
           if (hasData) {
             const shouldClear = confirm(
-              "⚠️ EXISTING DATA DETECTED ⚠️\n\n" +
-                "You have existing course data. Do you want to:\n\n" +
-                "• YES - Clear all data and load new file (fresh start)\n" +
-                "• NO - Keep existing data and try to merge/update\n\n" +
-                "Choose YES for a clean start, NO to keep your current selections."
+              "🗑️ UPLOADING NEW FILE WILL CLEAR:\n" +
+                "• All current course data\n" +
+                "• Selected courses and sections\n" +
+                "• Generated timetables\n\n" +
+                "Continue with upload?"
             );
 
-            if (shouldClear) {
-              console.log("🧹 User chose to clear data before upload...");
-              await clearAllDataSilent();
-            } else {
-              console.log("📂 User chose to keep existing data...");
+            if (!shouldClear) {
+              // User cancelled - reset file input and do nothing
+              const fileInput = document.getElementById("fileInput");
+              if (fileInput) fileInput.value = "";
+              return;
             }
+
+            console.log("🧹 User chose to clear data before upload...");
+            await clearAllDataSilent();
           }
         } else if (shouldClearFirst) {
           console.log("🧹 Clearing all previous data before upload...");
@@ -1176,10 +1132,8 @@
             displayCourses();
             updateStep(2);
 
-            // Hide the upload section and show compact button
+            // Hide the upload section
             document.getElementById("upload-section").style.display = "none";
-            document.getElementById("compact-upload-section").style.display =
-              "block";
 
             document.getElementById("course-selection-section").style.display =
               "block";
@@ -1396,14 +1350,13 @@
       function updateSelectedCoursesSummary() {
         const container = document.getElementById("selectedCoursesSummary");
         const generateManualBtn = document.getElementById("generateManualBtn");
-        const generateAIBtn = document.getElementById("generateAIBtn");
-        const clearSelectionsBtn = document.getElementById("clearSelectionsBtn");
+        const clearSelectionsBtn =
+          document.getElementById("clearSelectionsBtn");
 
         if (Object.keys(selectedCourses).length === 0) {
           container.innerHTML =
             '<p class="text-muted text-center">No courses selected yet</p>';
           generateManualBtn.disabled = true;
-          generateAIBtn.disabled = true;
           // Hide clear button when no courses selected
           if (clearSelectionsBtn) clearSelectionsBtn.style.display = "none";
           return;
@@ -1449,9 +1402,9 @@
             `;
         container.innerHTML = html;
         generateManualBtn.disabled = false;
-        generateAIBtn.disabled = false;
         // Show clear button when courses are selected
-        if (clearSelectionsBtn) clearSelectionsBtn.style.display = "inline-block";
+        if (clearSelectionsBtn)
+          clearSelectionsBtn.style.display = "inline-block";
       }
       async function generateTimetablesManually() {
         document.getElementById("loading-section").style.display = "block";
@@ -1467,8 +1420,8 @@
           document.getElementById("loading-section").style.display = "none";
 
           if (result.success) {
-            displayResults(result);
-            updateStep(4);
+            // Redirect to the dedicated timetable viewer page
+            window.location.href = "/timetable-viewer";
           } else {
             showAlert("warning", result.message);
           }
@@ -1476,11 +1429,6 @@
           document.getElementById("loading-section").style.display = "none";
           showAlert("danger", `Error generating timetables: ${error.message}`);
         }
-      }
-
-      async function generateTimetablesByAI() {
-        // Redirect to AI preferences page (placeholder for now)
-        window.location.href = "/ai-preferences";
       }
 
       function displayResults(result) {
@@ -1506,12 +1454,6 @@
         createCalendarInterface(result);
 
         document.getElementById("results-section").style.display = "block";
-
-        // Show export button if combinations were generated
-        if (result.count > 0) {
-          document.getElementById("exportDropdown").style.display =
-            "inline-block";
-        }
       }
 
       let currentCalendar = null;
@@ -1528,16 +1470,16 @@
             <p>Generated <strong>${result.count}</strong> valid timetable${
           result.count > 1 ? "s" : ""
         } with perfect time positioning!</p>
+            <p class="mb-0"><strong>👆 Click on a combination below to view the timetable:</strong></p>
           </div>
 
           <div class="combination-tabs">
         `;
 
-        // Create tabs for each combination
+        // Create tabs for each combination - no active class initially
         result.timetables.forEach((timetable, index) => {
-          const isActive = index === 0 ? "active" : "";
           html += `
-            <div class="combination-tab ${isActive}" onclick="switchTimetable(${index})">
+            <div class="combination-tab" onclick="switchTimetable(${index})">
               <i class="fas fa-calendar-alt"></i> Combination ${index + 1}
             </div>
           `;
@@ -1546,22 +1488,20 @@
         html += `
           </div>
 
-          <div class="calendar-container">
+          <div class="calendar-container" style="display: none;">
             <div class="calendar-header">
               <h4 class="calendar-title">
                 <i class="fas fa-calendar-week"></i> 
-                <span id="calendar-combination-title">Combination 1</span>
+                <span id="calendar-combination-title">Select a combination above</span>
               </h4>
               <div class="calendar-stats">
                 <div class="stat-item">
                   <i class="fas fa-book"></i>
-                  <span id="calendar-courses-count">${
-                    result.timetables[0]?.courses?.length || 0
-                  } courses</span>
+                  <span id="calendar-courses-count">- courses</span>
                 </div>
                 <div class="stat-item">
                   <i class="fas fa-clock"></i>
-                  <span id="calendar-days-count">Multiple days</span>
+                  <span id="calendar-days-count">- days</span>
                 </div>
               </div>
             </div>
@@ -1571,8 +1511,7 @@
 
         container.innerHTML = html;
 
-        // Initialize the calendar with the first timetable
-        initializeCalendar(0);
+        // Don't initialize the calendar automatically - wait for user to click a combination
       }
 
       function initializeCalendar(timetableIndex) {
@@ -1664,6 +1603,12 @@
       }
 
       function switchTimetable(index) {
+        // Show the calendar container
+        const calendarContainer = document.querySelector(".calendar-container");
+        if (calendarContainer) {
+          calendarContainer.style.display = "block";
+        }
+
         // Update active tab
         document.querySelectorAll(".combination-tab").forEach((tab, i) => {
           if (i === index) {
@@ -2004,8 +1949,6 @@
 
           // Hide all sections except upload (back to initial state)
           document.getElementById("upload-section").style.display = "block";
-          document.getElementById("compact-upload-section").style.display =
-            "none";
           document.getElementById("course-selection-section").style.display =
             "none";
           document.getElementById("generate-section").style.display = "none";
@@ -2014,18 +1957,12 @@
           // Reset buttons to disabled state
           const generateManualBtn =
             document.getElementById("generateManualBtn");
-          const generateAIBtn = document.getElementById("generateAIBtn");
           if (generateManualBtn) generateManualBtn.disabled = true;
-          if (generateAIBtn) generateAIBtn.disabled = true;
 
           // Hide clear button if it exists
           const clearSelectionsBtn =
             document.getElementById("clearSelectionsBtn");
           if (clearSelectionsBtn) clearSelectionsBtn.style.display = "none";
-
-          // Hide export button
-          const exportDropdown = document.getElementById("exportDropdown");
-          if (exportDropdown) exportDropdown.style.display = "none";
 
           // Clear any results content
           const resultsContainer = document.getElementById("resultsContainer");
@@ -2084,50 +2021,12 @@
       }
 
       async function showUploadNewFile() {
-        // Check if there's existing data that would be cleared
-        const hasData = currentCourses.length > 0 || Object.keys(selectedCourses).length > 0;
-        
-        if (hasData) {
-          const confirmed = confirm(
-            "🗑️ WILL BE CLEARED:\n" +
-            "• All current course data\n" +
-            "• Selected courses and sections\n" +
-            "• Generated timetables\n\n" +
-            "📁 THEN: File picker will open for new CSV\n\n" +
-            "Continue?"
-          );
-
-          if (!confirmed) {
-            return;
-          }
-        }
-
-        try {
-          // Clear all data first
-          await clearAllData();
-
-          // Show success message
-          showAlert(
-            "success",
-            "🧹 Ready for new CSV! File picker opening...",
-            2000
-          );
-
-          // Small delay then trigger file picker
-          setTimeout(() => {
-            const fileInput = document.getElementById("fileInput");
-            if (fileInput) {
-              // Set a flag so we know this is a "new file" upload
-              fileInput.dataset.shouldClear = "true";
-              fileInput.click(); // THIS IS THE KEY DIFFERENCE - OPENS FILE PICKER!
-            }
-          }, 500);
-        } catch (error) {
-          console.error("Error during reset:", error);
-          showAlert(
-            "danger",
-            "Error resetting application. Please refresh the page."
-          );
+        // Go straight to file picker - no confirmation dialog
+        const fileInput = document.getElementById("fileInput");
+        if (fileInput) {
+          // Set a flag so we know this is a "new file" upload that should clear data
+          fileInput.dataset.shouldClear = "true";
+          fileInput.click(); // Open file picker immediately
         }
       }
 

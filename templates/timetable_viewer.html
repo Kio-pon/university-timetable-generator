@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Timetable Viewer - University Scheduler</title>
+
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- FullCalendar CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .main-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+
+      .content-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+
+      .combination-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 30px;
+        justify-content: center;
+      }
+
+      .combination-tab {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border: 3px solid transparent;
+        font-weight: 500;
+        min-width: 150px;
+        text-align: center;
+      }
+
+      .combination-tab:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      .combination-tab.active {
+        border-color: #28a745;
+        box-shadow: 0 6px 25px rgba(40, 167, 69, 0.3);
+        transform: translateY(-3px);
+      }
+
+      .calendar-container {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+        border-radius: 10px;
+      }
+
+      .calendar-title {
+        margin: 0;
+        color: #495057;
+      }
+
+      .calendar-stats {
+        display: flex;
+        gap: 20px;
+      }
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.9rem;
+        color: #6c757d;
+      }
+
+      /* FullCalendar Event Styling */
+      .fc-event {
+        border-radius: 8px !important;
+        border: none !important;
+        padding: 2px 6px !important;
+        font-size: 0.85rem !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+      }
+
+      .fc-event-title {
+        font-weight: 600 !important;
+      }
+
+      /* Course Type Colors */
+      .event-core {
+        background: #3b82f6 !important;
+      }
+      .event-cs {
+        background: #10b981 !important;
+      }
+      .event-ee {
+        background: #f59e0b !important;
+      }
+      .event-phy {
+        background: #ec4899 !important;
+      }
+      .event-math {
+        background: #06b6d4 !important;
+      }
+      .event-mus {
+        background: #795548 !important;
+      }
+      .event-bio {
+        background: #8b5cf6 !important;
+      }
+      .event-com {
+        background: #ef4444 !important;
+      }
+      .event-sdp {
+        background: #16a34a !important;
+      }
+      .event-lang {
+        background: #f97316 !important;
+      }
+      .event-default {
+        background: #6b7280 !important;
+      }
+
+      .back-button {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        padding: 12px 20px;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+      }
+
+      .back-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      .loading-section {
+        text-align: center;
+        padding: 60px 20px;
+      }
+
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .no-combinations {
+        text-align: center;
+        padding: 60px 20px;
+      }
+
+      @media (max-width: 768px) {
+        .calendar-header {
+          flex-direction: column;
+          gap: 10px;
+          text-align: center;
+        }
+
+        .combination-tabs {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .combination-tab {
+          width: 100%;
+          max-width: 300px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <button class="btn back-button" onclick="goBack()">
+      <i class="fas fa-arrow-left me-2"></i>Back to Course Selection
+    </button>
+
+    <div class="main-container">
+      <div class="header">
+        <h1><i class="fas fa-calendar-alt me-3"></i>Timetable Generator</h1>
+        <p class="lead mb-0">
+          View and compare your generated timetable combinations
+        </p>
+      </div>
+
+      <!-- Loading Section -->
+      <div
+        id="loading-section"
+        class="content-card loading-section"
+        style="display: none"
+      >
+        <div class="loading-spinner"></div>
+        <h4>Generating Timetables...</h4>
+        <p class="text-muted">
+          Please wait while we create all possible combinations
+        </p>
+      </div>
+
+      <!-- Results Section -->
+      <div id="results-section" class="content-card" style="display: none">
+        <div id="resultsContainer">
+          <!-- Results will be populated here -->
+        </div>
+      </div>
+
+      <!-- No Results Section -->
+      <div
+        id="no-results-section"
+        class="content-card no-combinations"
+        style="display: none"
+      >
+        <div class="alert alert-warning">
+          <h5>
+            <i class="fas fa-exclamation-triangle"></i> No Valid Timetables
+            Found
+          </h5>
+          <p>
+            No valid timetables could be generated with your current selections.
+            This might be due to:
+          </p>
+          <ul class="text-start">
+            <li>Time conflicts between selected courses</li>
+            <li>No compatible sections available</li>
+            <li>🧠 AI filter rejected incompatible section pairings</li>
+          </ul>
+          <p>Try selecting different sections or fewer courses.</p>
+          <button class="btn btn-primary" onclick="goBack()">
+            <i class="fas fa-arrow-left me-2"></i>Go Back to Course Selection
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+    <script>
+      let currentCalendar = null;
+      let allTimetables = [];
+
+      // Load timetables when page loads
+      document.addEventListener("DOMContentLoaded", function () {
+        generateTimetables();
+      });
+
+      function goBack() {
+        window.location.href = "/";
+      }
+
+      async function generateTimetables() {
+        document.getElementById("loading-section").style.display = "block";
+
+        try {
+          const response = await fetch("/generate", {
+            method: "POST",
+          });
+
+          const result = await response.json();
+          document.getElementById("loading-section").style.display = "none";
+
+          if (result.success && result.count > 0) {
+            displayResults(result);
+            document.getElementById("results-section").style.display = "block";
+          } else {
+            document.getElementById("no-results-section").style.display =
+              "block";
+          }
+        } catch (error) {
+          document.getElementById("loading-section").style.display = "none";
+          document.getElementById("no-results-section").style.display = "block";
+          console.error("Error generating timetables:", error);
+        }
+      }
+
+      function displayResults(result) {
+        allTimetables = result.timetables;
+        const container = document.getElementById("resultsContainer");
+
+        let html = `
+                <div class="alert alert-success">
+                    <h5><i class="fas fa-check-circle"></i> Success! 🎉</h5>
+                    <p>Generated <strong>${
+                      result.count
+                    }</strong> valid timetable${
+          result.count > 1 ? "s" : ""
+        } with perfect time positioning!</p>
+                    <p class="mb-0"><strong>👆 Click on a combination below to view the timetable:</strong></p>
+                </div>
+
+                <div class="combination-tabs">
+            `;
+
+        // Create tabs for each combination
+        result.timetables.forEach((timetable, index) => {
+          html += `
+                    <div class="combination-tab" onclick="switchTimetable(${index})">
+                        <i class="fas fa-calendar-alt me-2"></i>Combination ${
+                          index + 1
+                        }
+                        <div class="small mt-1">${
+                          timetable.courses.length
+                        } courses</div>
+                    </div>
+                `;
+        });
+
+        html += `
+                </div>
+
+                <div class="calendar-container" style="display: none;">
+                    <div class="calendar-header">
+                        <h4 class="calendar-title">
+                            <i class="fas fa-calendar-week me-2"></i>
+                            <span id="calendar-combination-title">Select a combination above</span>
+                        </h4>
+                        <div class="calendar-stats">
+                            <div class="stat-item">
+                                <i class="fas fa-book"></i>
+                                <span id="calendar-courses-count">- courses</span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="fas fa-clock"></i>
+                                <span id="calendar-days-count">- days</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="calendar"></div>
+                </div>
+            `;
+
+        container.innerHTML = html;
+      }
+
+      function switchTimetable(index) {
+        // Show the calendar container
+        const calendarContainer = document.querySelector(".calendar-container");
+        if (calendarContainer) {
+          calendarContainer.style.display = "block";
+        }
+
+        // Update active tab
+        document.querySelectorAll(".combination-tab").forEach((tab, i) => {
+          if (i === index) {
+            tab.classList.add("active");
+          } else {
+            tab.classList.remove("active");
+          }
+        });
+
+        // Initialize calendar with new timetable
+        initializeCalendar(index);
+      }
+
+      function initializeCalendar(timetableIndex) {
+        const timetable = allTimetables[timetableIndex];
+
+        // Update header info
+        document.getElementById(
+          "calendar-combination-title"
+        ).textContent = `Combination ${timetableIndex + 1}`;
+        document.getElementById(
+          "calendar-courses-count"
+        ).textContent = `${timetable.courses.length} courses`;
+
+        // Count unique days
+        const daysUsed = new Set();
+        Object.keys(timetable.schedule).forEach((day) => {
+          if (timetable.schedule[day].length > 0) {
+            daysUsed.add(day);
+          }
+        });
+        document.getElementById(
+          "calendar-days-count"
+        ).textContent = `${daysUsed.size} days`;
+
+        // Convert timetable to FullCalendar events
+        const events = convertTimetableToEvents(timetable);
+
+        // Destroy existing calendar if it exists
+        if (currentCalendar) {
+          currentCalendar.destroy();
+        } // Initialize FullCalendar
+        const calendarEl = document.getElementById("calendar");
+        currentCalendar = new FullCalendar.Calendar(calendarEl, {
+          initialView: "timeGridWeek",
+          headerToolbar: false, // Remove all header navigation
+          events: events,
+          slotMinTime: "08:00:00",
+          slotMaxTime: "19:00:00",
+          slotDuration: "00:15:00",
+          slotLabelInterval: "01:00:00",
+          height: "auto",
+          expandRows: true,
+          nowIndicator: false, // Remove current time indicator
+          allDaySlot: false,
+          dayHeaderFormat: { weekday: "long" }, // Show full day names
+          weekends: false, // Hide Saturday and Sunday
+          firstDay: 1, // Start week on Monday (1=Monday)
+          hiddenDays: [0, 6], // Hide Sunday (0) and Saturday (6)
+
+          // Force the calendar to show our specific generic week
+          initialDate: "2025-01-06", // Monday January 6, 2025
+          validRange: {
+            start: "2025-01-06",
+            end: "2025-01-11",
+          },
+
+          // Custom day header content - just show day names without dates
+          dayHeaderContent: function (arg) {
+            const dayNames = [
+              "Sunday",
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday",
+            ];
+            return dayNames[arg.date.getDay()];
+          },
+
+          // Event styling and interaction
+          eventDidMount: function (info) {
+            const course = info.event.extendedProps;
+            info.el.setAttribute(
+              "title",
+              `📚 ${course.title}\n` +
+                `📝 ${course.courseCode} ${course.section}\n` +
+                `👨‍🏫 ${course.instructor}\n` +
+                `🏫 ${course.room}\n` +
+                `⏰ ${info.event.start.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })} - ${info.event.end.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+            );
+
+            const courseType = getCourseType(course.courseCode);
+            info.el.classList.add(`event-${courseType}`);
+          },
+
+          eventClick: function (info) {
+            const course = info.event.extendedProps;
+            showCourseModal(course, info.event);
+          },
+
+          windowResize: function () {
+            currentCalendar.updateSize();
+          },
+        });
+
+        currentCalendar.render();
+      }
+      function convertTimetableToEvents(timetable) {
+        const events = [];
+        // Use a fixed generic week - Monday to Friday
+        const genericWeekStart = new Date(2025, 0, 6); // January 6, 2025 is a Monday
+
+        Object.keys(timetable.schedule).forEach((day) => {
+          if (timetable.schedule[day].length > 0) {
+            timetable.schedule[day].forEach((classInfo) => {
+              const dayIndex = getDayIndex(day);
+              if (dayIndex === -1) return; // Skip Saturday/Sunday if they exist in data
+
+              const eventDate = new Date(genericWeekStart);
+              eventDate.setDate(genericWeekStart.getDate() + dayIndex);
+
+              const startDateTime = parseTimeString(classInfo.start, eventDate);
+              const endDateTime = parseTimeString(classInfo.end, eventDate);
+
+              if (startDateTime && endDateTime) {
+                events.push({
+                  title: `${classInfo.course} ${classInfo.section}`,
+                  start: startDateTime,
+                  end: endDateTime,
+                  backgroundColor: getCourseColor(classInfo.course),
+                  borderColor: getCourseColor(classInfo.course, true),
+                  extendedProps: {
+                    courseCode: classInfo.course,
+                    section: classInfo.section,
+                    title: classInfo.title,
+                    instructor: classInfo.instructor,
+                    room: classInfo.room,
+                    day: day,
+                  },
+                });
+              }
+            });
+          }
+        });
+
+        return events;
+      }
+
+      function getCourseType(courseCode) {
+        const code = courseCode.toLowerCase();
+        if (code.includes("core")) return "core";
+        if (code.includes("cs")) return "cs";
+        if (code.includes("ee") || code.includes("ce")) return "ee";
+        if (code.includes("phy")) return "phy";
+        if (code.includes("math")) return "math";
+        if (code.includes("mus")) return "mus";
+        if (code.includes("bio")) return "bio";
+        if (code.includes("com")) return "com";
+        if (code.includes("sdp")) return "sdp";
+        if (code.includes("lang")) return "lang";
+        return "default";
+      }
+
+      function getCourseColor(courseCode, isDark = false) {
+        const code = courseCode.toLowerCase();
+        const colors = {
+          core: isDark ? "#1d4ed8" : "#3b82f6",
+          cs: isDark ? "#047857" : "#10b981",
+          ce: isDark ? "#047857" : "#10b981",
+          ee: isDark ? "#d97706" : "#f59e0b",
+          phy: isDark ? "#db2777" : "#ec4899",
+          math: isDark ? "#0891b2" : "#06b6d4",
+          mus: isDark ? "#6d4c41" : "#795548",
+          bio: isDark ? "#7c3aed" : "#8b5cf6",
+          com: isDark ? "#dc2626" : "#ef4444",
+          sdp: isDark ? "#059669" : "#16a34a",
+          lang: isDark ? "#ea580c" : "#f97316",
+          ant: isDark ? "#7c2d12" : "#ea580c",
+          rel: isDark ? "#581c87" : "#7c3aed",
+          poli: isDark ? "#991b1b" : "#dc2626",
+        };
+
+        for (const [key, color] of Object.entries(colors)) {
+          if (code.includes(key)) {
+            return color;
+          }
+        }
+
+        return isDark ? "#374151" : "#6b7280";
+      }
+
+      // Generic week calendar - no need for current week calculation
+
+      function getDayIndex(dayName) {
+        // Monday to Friday order for the generic week calendar
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+        return days.indexOf(dayName);
+      }
+
+      function parseTimeString(timeStr, date) {
+        if (!timeStr || !date) return null;
+
+        try {
+          const cleanTime = timeStr.trim();
+          let hour, minute;
+
+          if (cleanTime.includes("AM") || cleanTime.includes("PM")) {
+            const [time, period] = cleanTime.split(" ");
+            const [hourStr, minuteStr] = time.split(":");
+            hour = parseInt(hourStr);
+            minute = parseInt(minuteStr) || 0;
+
+            if (period === "PM" && hour !== 12) {
+              hour += 12;
+            } else if (period === "AM" && hour === 12) {
+              hour = 0;
+            }
+          } else {
+            const [hourStr, minuteStr] = cleanTime.split(":");
+            hour = parseInt(hourStr);
+            minute = parseInt(minuteStr) || 0;
+          }
+
+          const dateTime = new Date(date);
+          dateTime.setHours(hour, minute, 0, 0);
+          return dateTime;
+        } catch (error) {
+          console.error("Error parsing time:", timeStr, error);
+          return null;
+        }
+      }
+
+      function showCourseModal(course, event) {
+        const startTime = event.start.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const endTime = event.end.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        alert(
+          `📚 Course Details\n\n` +
+            `Title: ${course.title}\n` +
+            `Course: ${course.courseCode}\n` +
+            `Section: ${course.section}\n` +
+            `👨‍🏫 Instructor: ${course.instructor}\n` +
+            `🏫 Room: ${course.room}\n` +
+            `📅 Day: ${course.day}\n` +
+            `⏰ Time: ${startTime} - ${endTime}`
+        );
+      }
+    </script>
+  </body>
+</html>
