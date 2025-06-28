@@ -19,7 +19,7 @@ from datetime import datetime
 
 # Import our modular components
 from timetable_generator import TimetableGenerator
-from file_processor import (
+from progress_archive.file_processor import (
     score_combinations_by_preferences, 
     generate_selected_sections_csv,
     check_early_morning_classes,
