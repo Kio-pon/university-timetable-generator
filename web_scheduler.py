@@ -3,13 +3,13 @@ Web-based University Timetable Generator using FastAPI
 Converts the tkinter scheduler to a modern web interface
 """
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Request, Response, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import pandas as pd
-import itertools
 from datetime import datetime, time
+import itertools
+import pandas as pd
 import re
 from collections import defaultdict
 import json
@@ -20,18 +20,45 @@ from typing import List, Dict, Any, Optional
 import tempfile
 import shutil
 import csv
-
-# Import the file processor function
-from progress_archive.file_processor import process_uploaded_file, extract_section_type
+import uuid
 
 app = FastAPI(title="University Timetable Generator", version="1.0.0")
 
 # Setup templates
 templates = Jinja2Templates(directory="templates")
 
+# Session-based TimetableGenerator management
+
+def get_generator(session_id):
+    if session_id not in session_store:
+        session_store[session_id] = TimetableGenerator()
+    return session_store[session_id]
+
 # Global storage for the current session (in production, use database/session storage)
-current_generator = None
-temp_data_file = None  # Store temporary file path
+session_store = {}  # In-memory dictionary for session data
+SESSION_COOKIE = "session_id"
+
+def get_session_id(session_id: str = Cookie(None)):
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+    return session_id
+
+def get_user_data(session_id):
+    return session_store.get(session_id, {})
+
+def set_user_data(session_id, data):
+    session_store[session_id] = data
+# Import the file processor function
+from progress_archive.file_processor import process_uploaded_file, extract_section_type
+
+# app = FastAPI(title="University Timetable Generator", version="1.0.0")
+
+# Setup templates
+# templates = Jinja2Templates(directory="templates")
+
+# Global storage for the current session (in production, use database/session storage)
+# current_generator = None
+# temp_data_file = None  # Store temporary file path
 
 class TimetableGenerator:   
     def __init__(self):
@@ -274,6 +301,216 @@ class TimetableGenerator:
     def is_section_paired(self, course, section):
         """Check if a section is part of a pair"""
         return (course, section) in self.pair_lookup
+    
+    def format_course_code_for_display(self, course_code: str) -> str:
+        """Convert internal course code (with |) back to display format (with /)"""
+        return course_code.replace('|', '/')
+    
+    def format_course_code_for_internal(self, course_code: str) -> str:
+        """Convert display course code (with /) to internal format (with |)"""
+        return course_code.replace('/', '|')
+
+    def get_unique_courses(self):
+        """Get list of unique courses"""
+        if self.course_data is None:
+            return []
+        return sorted(self.course_data['Course Code'].unique())
+    
+    def get_courses_with_titles(self):
+        """Get list of unique courses with their titles"""
+        if self.course_data is None:
+            return []
+        
+        # Get unique course codes with their titles
+        course_info = []
+        for course_code in sorted(self.course_data['Course Code'].unique()):
+            # Get the first occurrence to extract the title
+            course_row = self.course_data[self.course_data['Course Code'] == course_code].iloc[0]
+            title = course_row.get('Title', 'No Title')
+            course_display = f"{course_code} - {title}"
+            course_info.append({
+                'code': course_code,
+                'title': title,
+                'display': course_display
+            })
+        return course_info
+    
+    def get_course_sections(self, course_code):
+        """Get all sections for a specific course"""
+        if self.course_data is None:
+            return []
+        
+        course_sections = self.course_data[self.course_data['Course Code'] == course_code]
+        sections_info = []
+        
+        for section in course_sections['Section'].unique():
+            section_data = course_sections[course_sections['Section'] == section]
+            
+            # Group by section to handle multiple time slots
+            times = []
+            for _, row in section_data.iterrows():
+                time_info = f"{row['Day']} {row['Start']}-{row['End']}"
+                times.append(time_info)
+            
+            instructor = section_data['Instructor / Sponsor'].iloc[0]
+            title = section_data['Title'].iloc[0]
+            
+            sections_info.append({
+                'section': section,
+                'title': title,
+                'instructor': instructor,
+                'times': times,
+                'data': section_data,
+                'is_paired': self.is_section_paired(course_code, section),
+                'paired_with': self.get_paired_sections(course_code, section)
+            })
+        
+        return sections_info
+    
+    def _check_time_conflict(self, course1_data, course2_data, debug=False):
+        """Check if two courses have time conflicts"""
+        for _, row1 in course1_data.iterrows():
+            for _, row2 in course2_data.iterrows():
+                # Debug: Print the data being compared (optional)
+                if debug:
+                    course1_name = row1.get('Course Code', 'Unknown') + ' ' + row1.get('Section', '')
+                    course2_name = row2.get('Course Code', 'Unknown') + ' ' + row2.get('Section', '')
+                    
+                    print(f"🔍 Checking conflict between:")
+                    print(f"   Course 1: {course1_name}")
+                    print(f"   Days 1: {row1.get('Days_List', [])}")
+                    print(f"   Time 1: {row1.get('Start_24h')} - {row1.get('End_24h')}")
+                    print(f"   Course 2: {course2_name}")
+                    print(f"   Days 2: {row2.get('Days_List', [])}")
+                    print(f"   Time 2: {row2.get('Start_24h')} - {row2.get('End_24h')}")
+                
+                # Check if they share any common days
+                common_days = set(row1['Days_List']) & set(row2['Days_List'])
+                if debug:
+                    print(f"   Common days: {common_days}")
+                
+                if common_days:
+                    # Check time overlap
+                    start1, end1 = row1['Start_24h'], row1['End_24h']
+                    start2, end2 = row2['Start_24h'], row2['End_24h']
+                    
+                    if start1 and end1 and start2 and end2:
+                        # Check for overlap: start1 < end2 and start2 < end1
+                        overlap = start1 < end2 and start2 < end1
+                        if debug:
+                            print(f"   Time overlap check: {start1} < {end2} and {start2} < {end1} = {overlap}")
+                        
+                        if overlap:
+                            if debug:
+                                print(f"   🚨 CONFLICT DETECTED! {course1_name} conflicts with {course2_name}")
+                            return True
+                        else:
+                            if debug:
+                                print(f"   ✅ No time overlap")
+                    else:
+                        if debug:
+                            print(f"   ⚠️ Missing time data: start1={start1}, end1={end1}, start2={start2}, end2={end2}")
+                else:
+                    if debug:
+                        print(f"   ✅ No common days")
+                if debug:
+                    print(f"   ---")
+        
+        if debug:
+            print(f"   ✅ NO CONFLICTS FOUND")
+        return False
+    
+    def generate_combinations(self):
+        """Generate all valid combinations ensuring one section per course"""
+        if not self.selected_courses:
+            return []
+        
+        # Create course options ensuring one section per course
+        course_options = []
+        processed_pairs = set()
+        
+        for course_code, selected_sections in self.selected_courses.items():
+            if not selected_sections:
+                continue
+                
+            course_section_options = []
+            
+            for section in selected_sections:
+                section_key = (course_code, section)
+                
+                # Skip if this section is part of an already processed pair
+                if section_key in processed_pairs:
+                    continue
+                
+                # Get section data
+                section_data = self.course_data[
+                    (self.course_data['Course Code'] == course_code) & 
+                    (self.course_data['Section'] == section)
+                ]
+                
+                if self.is_section_paired(course_code, section):
+                    # Create atomic unit with all paired sections
+                    atomic_unit = [(course_code, section, section_data)]
+                    paired_sections = self.get_paired_sections(course_code, section)
+                    
+                    for paired_course, paired_section in paired_sections:
+                        paired_data = self.course_data[
+                            (self.course_data['Course Code'] == paired_course) & 
+                            (self.course_data['Section'] == paired_section)
+                        ]
+                        atomic_unit.append((paired_course, paired_section, paired_data))
+                        processed_pairs.add((paired_course, paired_section))
+                    
+                    course_section_options.append(atomic_unit)
+                    processed_pairs.add(section_key)
+                else:
+                    # Individual section
+                    atomic_unit = [(course_code, section, section_data)]
+                    course_section_options.append(atomic_unit)
+            
+            if course_section_options:
+                course_options.append(course_section_options)
+        
+        # Generate all combinations
+        valid_combinations = []
+        if course_options:
+            for combination in itertools.product(*course_options):
+                # Flatten combination
+                flattened_combination = []
+                for unit in combination:
+                    flattened_combination.extend(unit)
+                
+                if self._is_valid_combination(flattened_combination):
+                    valid_combinations.append(flattened_combination)
+        
+        self.valid_combinations = valid_combinations
+        return valid_combinations    
+
+    def _is_valid_combination(self, combination):
+        """Check if a combination of courses is valid (no duplicate courses, no time conflicts, and smart section pairing)"""
+        
+        # Check 1: No multiple sections of the same course
+        seen_courses = set()
+        for course_code, section, course_data in combination:
+            if course_code in seen_courses:
+                # Duplicate course found - invalid combination
+                return False
+            seen_courses.add(course_code)
+        
+        # Check 2: No time conflicts between any sections
+        for i in range(len(combination)):
+            for j in range(i + 1, len(combination)):
+                course1_data = combination[i][2]
+                course2_data = combination[j][2]
+                
+                if self._check_time_conflict(course1_data, course2_data):
+                    return False
+        
+        # Check 3: Smart section pairing validation - THE AI FILTER! 🧠
+        if not self._is_smart_pairing_valid(combination):
+            return False
+        
+        return True
     
     def format_course_code_for_display(self, course_code: str) -> str:
         """Convert internal course code (with |) back to display format (with /)"""
@@ -884,7 +1121,7 @@ class TimetableGenerator:
             return False
 
 # Initialize global generator
-current_generator = TimetableGenerator()
+# current_generator = TimetableGenerator()
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -897,29 +1134,26 @@ async def timetable_viewer(request: Request):
     return templates.TemplateResponse("timetable_viewer.html", {"request": request})
 
 @app.get("/status")
-async def get_status():
-    """Check if data is loaded and get current state with smart features"""
-    global current_generator
+async def get_status(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
     status = {
-        "data_loaded": current_generator.course_data is not None,
-        "filename": current_generator.current_file_path,
+        "data_loaded": generator.course_data is not None,
+        "filename": generator.current_file_path,
         "total_courses": 0,
-        "selected_courses": current_generator.selected_courses,
-        "has_combinations": len(current_generator.valid_combinations) > 0,
-        
-        # SMART FEATURES STATUS
+        "selected_courses": generator.selected_courses,
+        "has_combinations": len(generator.valid_combinations) > 0,
         "smart_features": {
-            "course_pairs_detected": len(current_generator.course_pairs) // 2,  # Divide by 2 for unique pairs
-            "section_predictions": sum(len(pairs) for pairs in current_generator.correct_pairings.values()),
-            "auto_pairing_enabled": len(current_generator.course_pairs) > 0
+            "course_pairs_detected": len(generator.course_pairs) // 2,
+            "section_predictions": sum(len(pairs) for pairs in generator.correct_pairings.values()),
+            "auto_pairing_enabled": len(generator.course_pairs) > 0
         }
     }
-    
-    if current_generator.course_data is not None:
-        courses = current_generator.get_courses_with_titles()
+    if generator.course_data is not None:
+        courses = generator.get_courses_with_titles()
         status["total_courses"] = len(courses)
         status["courses"] = courses
-    
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
     return status
 
 @app.post("/upload")
@@ -967,280 +1201,181 @@ async def upload_file(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
-@app.get("/courses")
-async def get_courses():
-    """Get all available courses"""
-    global current_generator
-    
-    if current_generator.course_data is None:
-        raise HTTPException(status_code=400, detail="No data loaded")
-    
-    courses = current_generator.get_courses_with_titles()
-    return {"courses": courses}
+@app.post("/select_courses")
+async def select_courses(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    data = await request.json()
+    generator.selected_courses = data.get("selected_courses", {})
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"message": "Courses selected"}
 
-@app.get("/courses/{course_code}/sections")
-async def get_course_sections(course_code: str):
-    """Get sections for a specific course"""
-    global current_generator
-    
-    if current_generator.course_data is None:
-        raise HTTPException(status_code=400, detail="No data loaded")
-    
-    sections = current_generator.get_course_sections(course_code)
-    return {"sections": sections}
+@app.get("/get_courses")
+async def get_courses(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"selected_courses": generator.selected_courses}
+
+@app.post("/generate")
+async def generate_timetable(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    # Optionally update selected_courses here if needed
+    generator.valid_combinations = generator.generate_combinations()
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": True, "count": len(generator.valid_combinations), "timetables": [generator.format_combination(c) for c in generator.valid_combinations]}
+
+@app.post("/clear_data")
+async def clear_data(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    generator.clear_data()
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"message": "Data cleared"}
+
+@app.post("/clear_roster")
+async def clear_roster(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    generator.clear_roster()
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"message": "Roster cleared"}
+
+@app.get("/get_timetables")
+async def get_timetables(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"timetables": [generator.format_combination(c) for c in generator.valid_combinations]}
 
 @app.post("/select-sections")
-async def select_sections(request: Request):
-    """STEP 3: Smart auto-selection with paired course logic (handles selection AND deselection)"""
-    global current_generator
-    
+async def select_sections(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
     data = await request.json()
     course_code = data.get("course_code")
     selected_sections = data.get("selected_sections", [])
-    
     if not course_code:
         raise HTTPException(status_code=400, detail="Course code is required")
-    
-    # Get previous selections to detect what changed
-    previous_selections = current_generator.selected_courses.get(course_code, [])
-    
-    # Update the primary course selection
-    current_generator.selected_courses[course_code] = selected_sections
+    previous_selections = generator.selected_courses.get(course_code, [])
+    generator.selected_courses[course_code] = selected_sections
     auto_paired = {}
-    
-    # Clean up empty selections
     if not selected_sections:
-        if course_code in current_generator.selected_courses:
-            del current_generator.selected_courses[course_code]
-    
-    # STEP 3: Smart auto-pairing logic
-    if course_code in current_generator.course_pairs:
-        paired_course = current_generator.course_pairs[course_code]
-        
+        if course_code in generator.selected_courses:
+            del generator.selected_courses[course_code]
+    if course_code in generator.course_pairs:
+        paired_course = generator.course_pairs[course_code]
         if selected_sections:
-            # User is selecting sections - do auto-pairing
-            compatible_sections = current_generator.find_compatible_sections(course_code, selected_sections, paired_course)
-            
+            compatible_sections = generator.find_compatible_sections(course_code, selected_sections, paired_course)
             if compatible_sections:
-                # Auto-select compatible sections in paired course
-                current_generator.selected_courses[paired_course] = compatible_sections
+                generator.selected_courses[paired_course] = compatible_sections
                 auto_paired[paired_course] = compatible_sections
-                
                 print(f"🎯 Auto-paired {course_code} {selected_sections} → {paired_course} {compatible_sections}")
         else:
-            # User deselected all sections - clear paired course too
-            if paired_course in current_generator.selected_courses:
-                del current_generator.selected_courses[paired_course]
-                auto_paired[paired_course] = []  # Indicate it was cleared
+            if paired_course in generator.selected_courses:
+                del generator.selected_courses[paired_course]
+                auto_paired[paired_course] = []
                 print(f"🗑️ Auto-cleared {paired_course} because {course_code} was deselected")
-    
-    # Remove any courses with empty selections
-    current_generator.selected_courses = {
-        course: sections for course, sections in current_generator.selected_courses.items() 
-        if sections  # Only keep non-empty selections
+    generator.selected_courses = {
+        course: sections for course, sections in generator.selected_courses.items() if sections
     }
-    
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
     return {
         "success": True,
         "message": f"Updated sections for {course_code}",
-        "selected_courses": current_generator.selected_courses,
+        "selected_courses": generator.selected_courses,
         "auto_paired": auto_paired,
-        "paired_course": current_generator.course_pairs.get(course_code, None)
+        "paired_course": generator.course_pairs.get(course_code, None)
     }
 
 @app.post("/create-pair")
-async def create_section_pair(request: Request):
-    """Create a section pair"""
-    global current_generator
-    
+async def create_section_pair(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
     data = await request.json()
     course1 = data.get("course1")
     section1 = data.get("section1")
     course2 = data.get("course2")
     section2 = data.get("section2")
-    
     if not all([course1, section1, course2, section2]):
         raise HTTPException(status_code=400, detail="All pair parameters are required")
-    
-    success, message = current_generator.create_section_pair(course1, section1, course2, section2)
-    
-    return {
-        "success": success,
-        "message": message
-    }
+    success, message = generator.create_section_pair(course1, section1, course2, section2)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": success, "message": message}
 
 @app.post("/remove-pair")
-async def remove_section_pair(request: Request):
-    """Remove a section pair"""
-    global current_generator
-    
+async def remove_section_pair(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
     data = await request.json()
     course = data.get("course")
     section = data.get("section")
-    
     if not all([course, section]):
         raise HTTPException(status_code=400, detail="Course and section are required")
-    
-    success, message = current_generator.remove_section_pair(course, section)
-    
-    return {
-        "success": success,
-        "message": message
-    }
-
-@app.post("/generate")
-async def generate_timetables():
-    """Generate all possible timetables"""
-    global current_generator
-    
-    if not current_generator.selected_courses:
-        raise HTTPException(status_code=400, detail="No courses selected")
-    
-    try:
-        combinations = current_generator.generate_combinations()
-        
-        if combinations:
-            # Format combinations for display
-            formatted_combinations = []
-            for i, combination in enumerate(combinations):
-                formatted = current_generator.format_combination(combination)
-                formatted['id'] = i + 1
-                formatted_combinations.append(formatted)
-            
-            # Include active timetable information for the first combination
-            active_timetable = None
-            if formatted_combinations:
-                active_timetable = formatted_combinations[0]
-            
-            return {
-                "success": True,
-                "count": len(combinations),
-                "timetables": formatted_combinations,
-                "active_timetable": active_timetable  # This will be displayed automatically
-            }
-        else:
-            return {
-                "success": False,
-                "message": "No valid timetables found with current selections",
-                "count": 0,
-                "timetables": [],
-                "active_timetable": None
-            }
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating timetables: {str(e)}")
-
-@app.post("/clear-data")
-async def clear_all_data():
-    """Clear all data"""
-    global current_generator, temp_data_file
-    
-    # Clean up temporary file
-    if temp_data_file and os.path.exists(temp_data_file):
-        try:
-            os.remove(temp_data_file)
-        except:
-            pass
-        temp_data_file = None
-    
-    current_generator.clear_data()
-    return {"success": True, "message": "All data cleared"}
-
-@app.post("/clear-roster")
-async def clear_roster():
-    """Clear selected courses roster"""
-    global current_generator
-    current_generator.clear_roster()
-    return {"success": True, "message": "Course roster cleared"}
+    success, message = generator.remove_section_pair(course, section)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": success, "message": message}
 
 @app.get("/selected-courses")
-async def get_selected_courses():
-    """Get currently selected courses"""
-    global current_generator
-    return {"selected_courses": current_generator.selected_courses}
-            
+async def get_selected_courses(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"selected_courses": generator.selected_courses}
+
 @app.get("/auto-pairs")
-async def get_auto_pairs():
-    """Get discovered course pairs from Step 1"""
-    global current_generator
-    
-    if current_generator.course_data is None:
-        raise HTTPException(status_code=400, detail="No data loaded")
-    
-    # Convert bidirectional pairs to unique pairs
+async def get_auto_pairs(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    if generator.course_data is None:
+        return {"success": True, "pairs": [], "total_pairs": 0}
     unique_pairs = []
     seen_pairs = set()
-    
-    for course1, course2 in current_generator.course_pairs.items():
+    for course1, course2 in generator.course_pairs.items():
         pair = tuple(sorted([course1, course2]))
         if pair not in seen_pairs:
-            unique_pairs.append({"course1": course1, "course2": course2})
+            unique_pairs.append(pair)
             seen_pairs.add(pair)
-    
-    return {
-        "success": True,
-        "pairs": unique_pairs,
-        "total_pairs": len(unique_pairs)
-    }
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": True, "pairs": unique_pairs, "total_pairs": len(unique_pairs)}
 
 @app.get("/section-suggestions/{course_code}")
-async def get_section_suggestions(course_code: str):
-    """Get suggested sections for auto-pairing"""
-    global current_generator
-    
-    if current_generator.course_data is None:
-        raise HTTPException(status_code=400, detail="No data loaded")
-    
+async def get_section_suggestions(course_code: str, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    if generator.course_data is None:
+        return {"success": True, "suggestions": {}}
     suggestions = {}
-    
-    # Check if this course has a pair
-    if course_code in current_generator.course_pairs:
-        paired_course = current_generator.course_pairs[course_code]
-        source_sections = current_generator.selected_courses.get(course_code, [])
-        
-        if source_sections:
-            # Find compatible sections for the paired course
-            compatible_sections = current_generator.find_compatible_sections(
-                source_course=course_code,
-                source_sections=source_sections,
-                target_course=paired_course
-            )
-            suggestions[paired_course] = compatible_sections
-    
-    return {
-        "success": True,
-        "suggestions": suggestions
-    }
+    if course_code in generator.course_pairs:
+        paired_course = generator.course_pairs[course_code]
+        selected_sections = generator.selected_courses.get(course_code, [])
+        suggestions[paired_course] = generator.find_compatible_sections(course_code, selected_sections, paired_course)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": True, "suggestions": suggestions}
 
 @app.post("/validate-selection")
-async def validate_selection(request: Request):
-    """Validate selected sections for compatibility"""
-    global current_generator
-    
+async def validate_selection(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
     data = await request.json()
     course_code = data.get("course_code")
     selected_sections = data.get("selected_sections", [])
-    
     if not course_code:
         raise HTTPException(status_code=400, detail="Course code is required")
+    # Example validation logic (customize as needed):
+    # Check if selected sections are compatible
+    # For now, just return success
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": True, "message": "Selection validated"}
     
-    # Get current selections without the new selection
-    current_selections = current_generator.selected_courses.copy()
-    if course_code in current_selections:
-        del current_selections[course_code]
-    
-    # Add the new selection temporarily
-    temp_selections = {course_code: selected_sections}
-    
-    # Validate all combinations
-    all_valid = True
-    conflicts = []
-    
-    return {
-        "success": True,
-        "is_valid": all_valid,
-        "conflicts": conflicts
-    }
+@app.get("/courses/{course_code}/sections")
+async def get_course_sections(course_code: str, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    sections = generator.get_course_sections(course_code)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"sections": sections}
     
 if __name__ == "__main__":
     import uvicorn

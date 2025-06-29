@@ -9,10 +9,7 @@ A smart timetable generator with AI-powered course pairing and modern calendar v
 - 📅 **Modern Calendar View**: Beautiful FullCalendar.js interface  
 - 📊 **CSV Export**: Export timetables in clean format
 - 📱 **Responsive Design**: Works on all devices
-
-## Live Demo
-
-🌐 **[Try it live!](https://your-app-name.railway.app)**
+    
 
 ## Technology Stack
 
@@ -45,14 +42,7 @@ Your CSV should have these columns:
 
 ```bash
 pip install -r requirements.txt
-uvicorn web_scheduler:app --reload
-```
-
-## Deployment
-
-Deploy to Railway with one click:
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template)
+python web_scheduler.py
 
 ---
 
