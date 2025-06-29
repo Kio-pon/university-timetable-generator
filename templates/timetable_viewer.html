@@ -56,34 +56,73 @@
       .combination-tabs {
         display: flex;
         flex-wrap: wrap;
-        gap: 15px;
-        margin-bottom: 30px;
+        gap: 20px;
+        margin-bottom: 35px;
         justify-content: center;
+        padding: 10px;
       }
 
       .combination-tab {
-        background: linear-gradient(45deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 15px 25px;
-        border-radius: 15px;
+        padding: 18px 28px;
+        border-radius: 16px;
         cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        border: 3px solid transparent;
-        font-weight: 500;
-        min-width: 150px;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.25);
+        border: 2px solid transparent;
+        font-weight: 600;
+        min-width: 160px;
         text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .combination-tab:before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        transition: left 0.5s;
       }
 
       .combination-tab:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(
+          135deg,
+          #5a67d8 0%,
+          #667eea 50%,
+          #764ba2 100%
+        );
+      }
+
+      .combination-tab:hover:before {
+        left: 100%;
       }
 
       .combination-tab.active {
-        border-color: #28a745;
-        box-shadow: 0 6px 25px rgba(40, 167, 69, 0.3);
-        transform: translateY(-3px);
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        border-color: rgba(255, 255, 255, 0.3);
+        box-shadow: 0 8px 35px rgba(72, 187, 120, 0.4);
+        transform: translateY(-6px) scale(1.05);
+      }
+
+      .combination-tab.active:before {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.3),
+          transparent
+        );
       }
 
       .calendar-container {
@@ -169,6 +208,183 @@
         background: #6b7280 !important;
       }
 
+      /* Enhanced Event Styling with Gradients */
+      .fc-event {
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 6px 10px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12) !important;
+        transition: all 0.3s ease !important;
+        overflow: hidden !important;
+      }
+
+      .fc-event:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18) !important;
+      }
+
+      .fc-event-title {
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        line-height: 1.3 !important;
+        margin-bottom: 3px !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+      }
+
+      .fc-event-time {
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: rgba(255, 255, 255, 0.95) !important;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+        display: block !important;
+        margin-bottom: 2px !important;
+      }
+
+      .fc-event .event-details {
+        font-size: 11px !important;
+        opacity: 0.9 !important;
+        margin-top: 2px !important;
+        line-height: 1.2 !important;
+      }
+
+      /* Event Content Styling for Line Breaks */
+      .fc-event .event-title {
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        line-height: 1.3 !important;
+        margin-bottom: 3px !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+        display: block !important;
+      }
+
+      .fc-event .event-detail {
+        font-size: 12px !important;
+        line-height: 1.2 !important;
+        margin: 1px 0 !important;
+        display: block !important;
+        opacity: 0.95 !important;
+      }
+
+      .fc-event .event-detail:first-of-type {
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        color: rgba(255, 255, 255, 0.98) !important;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+      }
+
+      /* Big Time Display at Top */
+      .fc-event .event-time-big {
+        font-size: 16px !important;
+        font-weight: 500 !important;
+        color: rgba(255, 255, 255, 0.98) !important;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+        display: block !important;
+        margin-bottom: 4px !important;
+        text-align: left !important;
+        padding: 2px 0 !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+      }
+
+      /* Toggle Panel Styling */
+      .toggle-panel {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+
+      .toggle-panel h5 {
+        margin: 0 0 15px 0;
+        color: #2d3748;
+        font-weight: 600;
+        font-size: 16px;
+      }
+
+      .toggle-controls {
+        display: flex;
+        gap: 30px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .toggle-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .toggle-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #4a5568;
+        user-select: none;
+      }
+
+      /* Beautiful Round Toggle Switch */
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, #cbd5e0, #a0aec0);
+        transition: all 0.3s ease;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background: linear-gradient(135deg, #ffffff, #f7fafc);
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+
+      input:checked + .slider {
+        background: linear-gradient(135deg, #48bb78, #38a169);
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1),
+          0 0 12px rgba(72, 187, 120, 0.3);
+      }
+
+      input:focus + .slider {
+        box-shadow: 0 0 3px #48bb78;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(24px);
+        background: linear-gradient(135deg, #ffffff, #f7fafc);
+      }
+
+      .slider.round {
+        border-radius: 26px;
+      }
+
+      .slider.round:before {
+        border-radius: 50%;
+      }
+
       .back-button {
         position: fixed;
         top: 20px;
@@ -215,6 +431,57 @@
         text-align: center;
         padding: 60px 20px;
       }
+
+      /* Google Calendar-like Time Axis (slot labels) */
+      .fc .fc-timegrid-slot-label,
+      .fc .fc-timegrid-axis-cushion {
+        font-family: "Google Sans", "Roboto", "Segoe UI", Arial, sans-serif !important;
+        color: #111 !important;
+        font-weight: 500 !important;
+        text-decoration: none !important;
+        border: none !important;
+        background: none !important;
+        box-shadow: none !important;
+        letter-spacing: 0.2px;
+        vertical-align: top !important;
+        text-align: right !important;
+        padding-right: 8px !important;
+        position: relative;
+        top: -15px;
+      }
+
+      /* Google Calendar-like Day Header (dates) */
+      .fc .fc-col-header-cell-cushion {
+        font-family: "Google Sans", "Roboto", "Segoe UI", Arial, sans-serif !important;
+        color: #111 !important;
+        font-weight: 500 !important;
+        text-decoration: none !important;
+        border: none !important;
+        background: none !important;
+        box-shadow: none !important;
+        letter-spacing: 0.2px;
+      }
+
+      /* Remove border from the first column (time axis) */
+    /* Remove border and background from the first column (time axis) */
+    .fc .fc-timegrid-axis {
+      border: none !important;
+      background: none !important;
+      box-shadow: none !important;
+    }
+    /* Remove extra padding/margin from time labels for better alignment */
+    .fc .fc-timegrid-slot-label,
+    .fc .fc-timegrid-axis-cushion {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+      line-height: 1.1 !important;
+    }
+    /* Prevent numbers from being cut off or stuck at the top */
+    .fc .fc-timegrid-slot-label {
+      top: 0 !important;
+    }
 
       @media (max-width: 768px) {
         .calendar-header {
@@ -344,7 +611,7 @@
         const container = document.getElementById("resultsContainer");
 
         let html = `
-                <div class="alert alert-success">
+                <div class="alert alert-success" id="success-banner" style="transition: opacity 0.7s ease;">
                     <h5><i class="fas fa-check-circle"></i> Success! 🎉</h5>
                     <p>Generated <strong>${
                       result.count
@@ -391,11 +658,51 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Calendar Display Options Panel -->
+                    <div class="toggle-panel">
+                        <h5><i class="fas fa-cog me-2"></i>Display Options</h5>
+                        <div class="toggle-controls">
+                            <div class="toggle-item">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="showCourseCode" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="toggle-label">Course Code</span>
+                            </div>
+                            <div class="toggle-item">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="showInstructor">
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="toggle-label">Instructor</span>
+                            </div>
+                            <div class="toggle-item">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="showLocation">
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="toggle-label">Location</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div id="calendar"></div>
                 </div>
             `;
 
         container.innerHTML = html;
+
+        // Fade out the success banner after 3 seconds
+        setTimeout(function() {
+          const banner = document.getElementById('success-banner');
+          if (banner) {
+            banner.style.opacity = '0';
+            setTimeout(function() {
+              banner.style.display = 'none';
+            }, 700);
+          }
+        }, 3000);
       }
 
       function switchTimetable(index) {
@@ -420,6 +727,9 @@
 
       function initializeCalendar(timetableIndex) {
         const timetable = allTimetables[timetableIndex];
+
+        // Store timetable data globally for toggle refreshes
+        window.currentTimetableData = timetable;
 
         // Update header info
         document.getElementById(
@@ -446,7 +756,9 @@
         // Destroy existing calendar if it exists
         if (currentCalendar) {
           currentCalendar.destroy();
-        } // Initialize FullCalendar
+        }
+
+        // Initialize FullCalendar
         const calendarEl = document.getElementById("calendar");
         currentCalendar = new FullCalendar.Calendar(calendarEl, {
           initialView: "timeGridWeek",
@@ -486,22 +798,28 @@
             return dayNames[arg.date.getDay()];
           },
 
+          // Enable HTML content in events
+          eventContent: function (arg) {
+            return { html: arg.event.title };
+          },
+
           // Event styling and interaction
           eventDidMount: function (info) {
             const course = info.event.extendedProps;
+
+            // Apply gradient background
+            const backgroundColor = info.event.backgroundColor;
+            const darkerColor = getCourseColor(course.courseCode, true);
+            info.el.style.background = `linear-gradient(135deg, ${backgroundColor}, ${darkerColor})`;
+
+            // Enhanced tooltip
             info.el.setAttribute(
               "title",
               `📚 ${course.title}\n` +
                 `📝 ${course.courseCode} ${course.section}\n` +
                 `👨‍🏫 ${course.instructor}\n` +
                 `🏫 ${course.room}\n` +
-                `⏰ ${info.event.start.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })} - ${info.event.end.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}`
+                `⏰ ${course.timeSlot}`
             );
 
             const courseType = getCourseType(course.courseCode);
@@ -519,6 +837,9 @@
         });
 
         currentCalendar.render();
+
+        // Setup toggle event listeners
+        setupToggleListeners();
       }
       function convertTimetableToEvents(timetable) {
         const events = [];
@@ -538,8 +859,9 @@
               const endDateTime = parseTimeString(classInfo.end, eventDate);
 
               if (startDateTime && endDateTime) {
+                const eventTitle = buildEventTitle(classInfo);
                 events.push({
-                  title: `${classInfo.course} ${classInfo.section}`,
+                  title: eventTitle.html, // Use HTML version for proper line breaks
                   start: startDateTime,
                   end: endDateTime,
                   backgroundColor: getCourseColor(classInfo.course),
@@ -551,6 +873,8 @@
                     instructor: classInfo.instructor,
                     room: classInfo.room,
                     day: day,
+                    timeSlot: classInfo.time,
+                    textTitle: eventTitle.text, // Keep text version for tooltip
                   },
                 });
               }
@@ -559,6 +883,70 @@
         });
 
         return events;
+      }
+
+      function buildEventTitle(classInfo) {
+        // Always start with course title
+        let title = classInfo.title || classInfo.course;
+
+        // Get toggle states
+        const showCourseCode =
+          document.getElementById("showCourseCode")?.checked || false;
+        const showInstructor =
+          document.getElementById("showInstructor")?.checked || false;
+        const showLocation =
+          document.getElementById("showLocation")?.checked || false;
+
+        let details = [];
+
+        // Add course code if toggled on (adds to title, doesn't replace)
+        if (showCourseCode) {
+          title = `${classInfo.title} (${classInfo.course} - ${classInfo.section})`;
+        }
+
+        // Add instructor if toggled on
+        if (showInstructor && classInfo.instructor) {
+          details.push(`👨‍🏫 ${classInfo.instructor}`);
+        }
+
+        // Add location if toggled on
+        if (showLocation && classInfo.room) {
+          details.push(`📍 ${classInfo.room}`);
+        }
+
+        // Create the big time display at the top
+        const timeDisplay = `${classInfo.start} - ${classInfo.end}`;
+
+        // Return as object with both text and HTML versions
+        return {
+          text: `${timeDisplay}\n${title}${
+            details.length > 0 ? "\n" + details.join("\n") : ""
+          }`,
+          html: `<div class="event-time-big">${timeDisplay}</div><div class="event-title">${title}</div>${details
+            .map((detail) => `<div class="event-detail">${detail}</div>`)
+            .join("")}`,
+        };
+      }
+
+      // Add event listeners for toggles
+      function setupToggleListeners() {
+        const toggles = ["showCourseCode", "showInstructor", "showLocation"];
+
+        toggles.forEach((toggleId) => {
+          const toggle = document.getElementById(toggleId);
+          if (toggle) {
+            toggle.addEventListener("change", function () {
+              // Refresh the calendar when toggle state changes
+              if (currentCalendar && window.currentTimetableData) {
+                const newEvents = convertTimetableToEvents(
+                  window.currentTimetableData
+                );
+                currentCalendar.removeAllEvents();
+                currentCalendar.addEventSource(newEvents);
+              }
+            });
+          }
+        });
       }
 
       function getCourseType(courseCode) {
@@ -577,31 +965,97 @@
       }
 
       function getCourseColor(courseCode, isDark = false) {
-        const code = courseCode.toLowerCase();
-        const colors = {
-          core: isDark ? "#1d4ed8" : "#3b82f6",
-          cs: isDark ? "#047857" : "#10b981",
-          ce: isDark ? "#047857" : "#10b981",
-          ee: isDark ? "#d97706" : "#f59e0b",
-          phy: isDark ? "#db2777" : "#ec4899",
-          math: isDark ? "#0891b2" : "#06b6d4",
-          mus: isDark ? "#6d4c41" : "#795548",
-          bio: isDark ? "#7c3aed" : "#8b5cf6",
-          com: isDark ? "#dc2626" : "#ef4444",
-          sdp: isDark ? "#059669" : "#16a34a",
-          lang: isDark ? "#ea580c" : "#f97316",
-          ant: isDark ? "#7c2d12" : "#ea580c",
-          rel: isDark ? "#581c87" : "#7c3aed",
-          poli: isDark ? "#991b1b" : "#dc2626",
-        };
+        // Generate a unique pastel color for each course
+        return generatePastelColor(courseCode, isDark);
+      }
 
-        for (const [key, color] of Object.entries(colors)) {
-          if (code.includes(key)) {
-            return color;
-          }
+      function generatePastelColor(courseCode, isDark = false) {
+        // Create a hash from the course code for consistency
+        let hash = 0;
+        for (let i = 0; i < courseCode.length; i++) {
+          hash = courseCode.charCodeAt(i) + ((hash << 5) - hash);
         }
 
-        return isDark ? "#374151" : "#6b7280";
+        // Expanded 48+ beautiful pastel color palette - soft and soothing
+        const pastelColors = [
+          // Soft Blues & Teals
+          { light: "#A8DADC", dark: "#7FB3D6" }, // Powder Blue
+          { light: "#B8E6E8", dark: "#88C1C4" }, // Light Cyan
+          { light: "#C7CEDB", dark: "#9FA8B8" }, // Periwinkle
+          { light: "#E0F2F1", dark: "#B2DFDB" }, // Mint Cream
+          { light: "#E1F5FE", dark: "#B3E5FC" }, // Light Blue
+          { light: "#F0F8FF", dark: "#D6ECFF" }, // Alice Blue
+
+          // Gentle Greens
+          { light: "#D4E6B7", dark: "#AECF8D" }, // Light Green
+          { light: "#E8F5E8", dark: "#C8E6C8" }, // Honeydew
+          { light: "#C8E6C8", dark: "#A4D4A4" }, // Sage Green
+          { light: "#F0F8E8", dark: "#D4E8C4" }, // Beige Green
+          { light: "#E8F5E8", dark: "#C5E1C5" }, // Mint Green
+          { light: "#F1F8E9", dark: "#DCEDC8" }, // Light Green
+
+          // Warm Pastels - Pinks & Roses
+          { light: "#F1C0C8", dark: "#E699A3" }, // Pink Lace
+          { light: "#FFE4E1", dark: "#FFD0CC" }, // Misty Rose
+          { light: "#FFF0F5", dark: "#FFE4F0" }, // Lavender Blush
+          { light: "#FFEBEE", dark: "#FFCDD2" }, // Pink Tint
+          { light: "#F8BBD9", dark: "#F48FB1" }, // Pink Light
+          { light: "#FCE4EC", dark: "#F8BBD9" }, // Pink
+
+          // Warm Pastels - Peaches & Oranges
+          { light: "#F4D1AE", dark: "#EABC8B" }, // Peach Puff
+          { light: "#FFE4B5", dark: "#F0D085" }, // Moccasin
+          { light: "#FFEFD5", dark: "#FFE0B2" }, // Papaya Whip
+          { light: "#FFF8DC", dark: "#F5DEB3" }, // Cornsilk
+          { light: "#FFEBCD", dark: "#FFD54F" }, // Blanched Almond
+          { light: "#FFEAA7", dark: "#FDCB6E" }, // Peach
+
+          // Soft Purples & Mauves
+          { light: "#E6E6FA", dark: "#D8D8F0" }, // Lavender Mist
+          { light: "#F0E6FF", dark: "#E0D0FF" }, // Thistle
+          { light: "#E6D7FF", dark: "#D1BFFF" }, // Lavender
+          { light: "#DDA0DD", dark: "#C485C4" }, // Plum Light
+          { light: "#E8DAEF", dark: "#D7BDE2" }, // Wisteria
+          { light: "#F3E5F5", dark: "#E1BEE7" }, // Purple Tint
+
+          // Earth Tones - Muted
+          { light: "#E8C5A0", dark: "#D4A574" }, // Wheat
+          { light: "#F5DEB3", dark: "#E6C488" }, // Wheat Light
+          { light: "#FAEBD7", dark: "#E8D4AA" }, // Antique White
+          { light: "#FDF6E3", dark: "#F7E9C1" }, // Cream
+          { light: "#F5F5DC", dark: "#EEEEDC" }, // Beige
+          { light: "#F0E68C", dark: "#DAA520" }, // Khaki
+
+          // Cool Grays & Blues
+          { light: "#F8F8FF", dark: "#E8E8F5" }, // Ghost White
+          { light: "#E6F3FF", dark: "#CCE7FF" }, // Alice Blue
+          { light: "#E0E6FF", dark: "#C7D2FF" }, // Lavender Blue
+          { light: "#F0F4F8", dark: "#E2E8F0" }, // Slate Gray
+          { light: "#F7FAFC", dark: "#EDF2F7" }, // Gray Light
+          { light: "#E2E8F0", dark: "#CBD5E0" }, // Gray Blue
+
+          // Soft Yellows & Golds
+          { light: "#FFFACD", dark: "#F0E68C" }, // Lemon Chiffon
+          { light: "#FFEFD5", dark: "#FFE0B2" }, // Papaya
+          { light: "#FFF8DC", dark: "#F5DEB3" }, // Cornsilk
+          { light: "#FFFFE0", dark: "#FFFF99" }, // Light Yellow
+          { light: "#F0E68C", dark: "#DAA520" }, // Khaki
+          { light: "#FAFAD2", dark: "#F0E68C" }, // Light Goldenrod
+
+          // Additional Soft Tones
+          { light: "#E6F7FF", dark: "#BAE7FF" }, // Cyan Light
+          { light: "#F6FFED", dark: "#D9F7BE" }, // Green Light
+          { light: "#FFF7E6", dark: "#FFE7BA" }, // Orange Light
+          { light: "#FFF1F0", dark: "#FFD6CC" }, // Red Light
+          { light: "#F9F0FF", dark: "#EFDBFF" }, // Purple Light
+          { light: "#FCFCFC", dark: "#F5F5F5" }, // Almost White
+        ];
+
+        // Use hash to pick a color consistently for the same course
+        const colorIndex = Math.abs(hash) % pastelColors.length;
+        const selectedColor = pastelColors[colorIndex];
+
+        return isDark ? selectedColor.dark : selectedColor.light;
       }
 
       // Generic week calendar - no need for current week calculation
