@@ -15,6 +15,138 @@
     <!-- FullCalendar.js CSS and JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <style>
+      @import url(https://fonts.googleapis.com/css?family=Montserrat);
+
+      /* Initial Loading Screen */
+      .initial-loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.5s ease, visibility 0.5s ease;
+        /* Ensure it shows immediately */
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .initial-loading-screen.fade-out {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .wrap {
+        text-align: center;
+        /* Ensure the container is visible */
+        opacity: 1;
+        animation: fadeIn 0.5s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .text {
+        color: #fbae17;
+        display: inline-block;
+        margin-left: 5px;
+        font-family: "Montserrat", sans-serif;
+        font-weight: 600;
+        font-size: 18px;
+        letter-spacing: 2px;
+      }
+
+      .bounceball {
+        position: relative;
+        display: inline-block;
+        height: 37px;
+        width: 15px;
+        margin-right: 10px;
+      }
+
+      .bounceball:before {
+        position: absolute;
+        content: "";
+        display: block;
+        top: 0;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background-color: #fbae17;
+        transform-origin: 50%;
+        -webkit-animation: bounce 500ms alternate infinite ease;
+        animation: bounce 500ms alternate infinite ease;
+        /* Force hardware acceleration */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        will-change: transform, top, height, border-radius;
+      }
+
+      @-webkit-keyframes bounce {
+        0% {
+          top: 30px;
+          height: 5px;
+          border-radius: 60px 60px 20px 20px;
+          transform: scaleX(2) translateZ(0);
+        }
+        35% {
+          height: 15px;
+          border-radius: 50%;
+          transform: scaleX(1) translateZ(0);
+        }
+        100% {
+          top: 0;
+          transform: scaleX(1) translateZ(0);
+        }
+      }
+
+      @keyframes bounce {
+        0% {
+          top: 30px;
+          height: 5px;
+          border-radius: 60px 60px 20px 20px;
+          transform: scaleX(2) translateZ(0);
+        }
+        35% {
+          height: 15px;
+          border-radius: 50%;
+          transform: scaleX(1) translateZ(0);
+        }
+        100% {
+          top: 0;
+          transform: scaleX(1) translateZ(0);
+        }
+      }
+
+      /* Enhanced Loading Text */
+      .loading-title {
+        color: white;
+        font-family: "Montserrat", sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      .loading-subtitle {
+        color: rgba(255, 255, 255, 0.8);
+        font-family: "Montserrat", sans-serif;
+        font-size: 14px;
+        font-weight: 400;
+        margin-top: 20px;
+        text-align: center;
+      }
+
       :root {
         --primary-color: #2563eb;
         --secondary-color: #64748b;
@@ -348,6 +480,373 @@
       .search-box input:focus {
         border-color: var(--primary-color);
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      /* Elective Categories Styles */
+      .elective-category {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: linear-gradient(135deg, #fafbfc, #f8fafc);
+        transition: all 0.3s ease;
+      }
+
+      .elective-category:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);
+      }
+
+      .elective-category-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 10px;
+        font-weight: 600;
+        color: var(--primary-color);
+      }
+
+      .elective-course-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin: 5px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+      }
+
+      .elective-course-item:hover {
+        background: #f8fafc;
+        border-color: var(--primary-color);
+      }
+
+      .elective-course-item .remove-btn {
+        color: #dc2626;
+        background: none;
+        border: none;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        transition: all 0.2s ease;
+      }
+
+      .elective-course-item .remove-btn:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+
+      .available-course-item {
+        cursor: pointer;
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin: 5px 0;
+        background: white;
+        transition: all 0.2s ease;
+      }
+
+      .available-course-item:hover {
+        background: #f0f9ff;
+        border-color: var(--primary-color);
+        transform: translateX(5px);
+      }
+
+      .category-delete-btn {
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        transition: all 0.2s ease;
+      }
+
+      .category-delete-btn:hover {
+        background: linear-gradient(135deg, #b91c1c, #991b1b);
+        transform: scale(1.05);
+      }
+
+      /* Section Card Styles */
+      .section-card {
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 8px 0;
+        background: white;
+        transition: all 0.3s ease;
+      }
+
+      /* .section-card:hover {
+        border-color: var(--primary-color);
+        background: #f8fafc;
+        transform: translateX(3px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+      } */
+
+      .section-card.selected {
+        border-color: var(--primary-color);
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
+      }
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .selection-indicator {
+        font-size: 18px;
+      }
+
+      /* Assignment Summary Styles */
+      .assignment-summary {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 15px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .course-assignment-dropdown {
+        font-size: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+      }
+
+      .course-assignment-dropdown:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+      }
+
+      .category-badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      /* Modern Generate Button */
+      .modern-generate-btn {
+        background: linear-gradient(135deg, #10b981, #047857);
+        border: none;
+        padding: 12px 30px;
+        font-weight: 600;
+        font-size: 16px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .modern-generate-btn:hover:not(:disabled) {
+        background: linear-gradient(135deg, #059669, #065f46);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+      }
+
+      .modern-generate-btn:disabled {
+        background: linear-gradient(135deg, #9ca3af, #6b7280);
+        box-shadow: none;
+        transform: none;
+        cursor: not-allowed;
+      }
+
+      .modern-generate-btn::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        transition: left 0.5s;
+      }
+
+      .modern-generate-btn:hover:not(:disabled)::before {
+        left: 100%;
+      }
+
+      /* Enhanced Course Assignment Dropdown */
+      .modern-course-dropdown {
+        font-size: 13px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 8px;
+        background: white;
+        color: #374151;
+        font-weight: 500;
+        min-width: 130px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+      }
+
+      .modern-course-dropdown:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .modern-course-dropdown:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      }
+
+      .modern-course-dropdown option {
+        padding: 8px 12px;
+        background: white;
+        color: #374151;
+        font-weight: 500;
+      }
+
+      .modern-course-dropdown option:hover {
+        background: #f3f4f6;
+      }
+
+      .modern-course-dropdown option.add-elective-option {
+        color: #3b82f6;
+        font-weight: 600;
+        background: #eff6ff;
+        border-top: 1px solid #e2e8f0;
+      }
+
+      .modern-course-dropdown option.add-elective-option:hover {
+        background: #dbeafe;
+      }
+
+      /* Custom Modal Styles */
+      .custom-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .custom-modal-overlay.show {
+        opacity: 1;
+      }
+
+      .custom-modal {
+        background: white;
+        border-radius: 16px;
+        padding: 0;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        min-width: 400px;
+        max-width: 500px;
+        transform: scale(0.9) translateY(-20px);
+        transition: all 0.3s ease;
+      }
+
+      .custom-modal-overlay.show .custom-modal {
+        transform: scale(1) translateY(0);
+      }
+
+      .custom-modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+        border-radius: 16px 16px 0 0;
+      }
+
+      .custom-modal-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .custom-modal-body {
+        padding: 24px;
+      }
+
+      .custom-modal-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+      }
+
+      .custom-modal-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .custom-modal-error {
+        color: #dc2626;
+        font-size: 12px;
+        margin-top: 8px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .custom-modal-error.show {
+        opacity: 1;
+      }
+
+      .custom-modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        background: #f9fafb;
+        border-radius: 0 0 16px 16px;
+      }
+
+      .modal-btn {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .modal-btn-primary {
+        background: #3b82f6;
+        color: white;
+      }
+
+      .modal-btn-primary:hover:not(:disabled) {
+        background: #2563eb;
+      }
+
+      .modal-btn-primary:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+      }
+
+      .modal-btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+      }
+
+      .modal-btn-secondary:hover {
+        background: #e5e7eb;
       }
 
       .search-box i {
@@ -795,6 +1294,20 @@
     </style>
   </head>
   <body>
+    <!-- Initial Loading Screen -->
+    <div class="initial-loading-screen" id="initialLoadingScreen">
+      <div class="wrap">
+        <div class="loading-title">🎓 University Timetable Generator</div>
+        <div class="loading">
+          <div class="bounceball"></div>
+          <div class="text">NOW LOADING</div>
+        </div>
+        <div class="loading-subtitle">
+          Preparing your scheduling experience...
+        </div>
+      </div>
+    </div>
+
     <div class="main-container">
       <!-- Header -->
       <div class="header">
@@ -813,20 +1326,20 @@
       <!-- Step Indicator -->
       <div class="step-indicator">
         <div class="step active" id="step1">
-          <i class="fas fa-upload"></i>
-          <span class="ms-2">1. Upload Data</span>
+          <!-- <i class="fas fa-upload"></i>
+          <span class="ms-2">1. Upload Data</span> -->
         </div>
         <div class="step" id="step2">
-          <i class="fas fa-check-square"></i>
-          <span class="ms-2">2. Select Courses</span>
+          <!-- <i class="fas fa-check-square"></i>
+          <span class="ms-2">2. Select Courses</span> -->
         </div>
         <div class="step" id="step3">
-          <i class="fas fa-cogs"></i>
-          <span class="ms-2">3. Generate</span>
+          <!-- <i class="fas fa-cogs"></i>
+          <span class="ms-2">3. Generate</span> -->
         </div>
         <div class="step" id="step4">
-          <i class="fas fa-calendar"></i>
-          <span class="ms-2">4. View Timetables</span>
+          <!-- <i class="fas fa-calendar"></i>
+          <span class="ms-2">4. View Timetables</span> -->
         </div>
       </div>
 
@@ -900,7 +1413,7 @@
                 <h5><i class="fas fa-check-circle"></i> Selected Courses</h5>
                 <button
                   class="btn btn-outline-danger btn-sm"
-                    onclick="clearRoster();clearSelectedCourses()"
+                  onclick="clearRoster();clearSelectedCourses()"
                   id="clearSelectionsBtn"
                   style="display: none"
                 >
@@ -913,16 +1426,16 @@
             </div>
           </div>
 
-          <!-- Generate Buttons Section -->
+          <!-- Generate Timetables Button -->
           <div class="row mt-4">
             <div class="col-12 text-center">
               <button
-                class="btn btn-success btn-lg"
-                onclick="generateTimetablesManually()"
+                class="btn btn-success btn-lg modern-generate-btn"
+                onclick="generateTimetablesDirectly()"
                 disabled
-                id="generateManualBtn"
+                id="generateTimetablesBtn"
               >
-                <i class="fas fa-cogs"></i> Generate Timetables
+                <i class="fas fa-rocket"></i> Generate Timetables
               </button>
               <p class="text-muted mt-2">
                 Generate all possible valid timetable combinations
@@ -964,13 +1477,15 @@
     <script>
       let currentCourses = [];
       let selectedCourses = {};
-      let currentSelectedCourse = null; // Initialize drag and drop
+      let currentSelectedCourse = null;
+      let electiveCategories = [];
+      let courseAssignments = {}; // Track course assignments      // Initialize drag and drop
       document.addEventListener("DOMContentLoaded", function () {
         const fileUploadArea = document.getElementById("fileUploadArea");
         const fileInput = document.getElementById("fileInput");
 
-        // Check for existing data on page load
-        checkExistingData();
+        // Show loading screen initially and check for existing data
+        initializeApp();
 
         // Click to upload
         fileUploadArea.addEventListener("click", () => fileInput.click());
@@ -1019,6 +1534,34 @@
           .addEventListener("input", filterCourses);
       });
 
+      async function initializeApp() {
+        const loadingScreen = document.getElementById("initialLoadingScreen");
+
+        try {
+          // Add minimum loading time for better UX (2.5 seconds to see bouncing animation)
+          const [existingDataResult] = await Promise.all([
+            checkExistingData(),
+            new Promise((resolve) => setTimeout(resolve, 250)),
+          ]);
+
+          // Fade out loading screen
+          loadingScreen.classList.add("fade-out");
+
+          // Remove loading screen after transition
+          setTimeout(() => {
+            loadingScreen.remove();
+          }, 500);
+        } catch (error) {
+          console.error("Error during app initialization:", error);
+
+          // Even if there's an error, hide loading screen and show upload
+          loadingScreen.classList.add("fade-out");
+          setTimeout(() => {
+            loadingScreen.remove();
+          }, 500);
+        }
+      }
+
       async function checkExistingData() {
         try {
           const response = await fetch("/status");
@@ -1054,12 +1597,18 @@
                 "block";
               loadCombinations();
             }
+
+            return { hasData: true };
+          } else {
+            // No existing data, show upload section
+            return { hasData: false };
           }
         } catch (error) {
           console.log(
             "No existing data found or error checking status:",
             error
           );
+          return { hasData: false };
         }
       }
 
@@ -1234,7 +1783,7 @@
 
         sections.forEach((section) => {
           const sectionDiv = document.createElement("div");
-          sectionDiv.className = "section-checkbox";
+          sectionDiv.className = "section-card";
 
           const isSelected =
             selectedCourses[courseCode] &&
@@ -1251,19 +1800,20 @@
                     </div>`;
           }
 
+          // Make the entire card clickable
+          sectionDiv.style.cursor = "pointer";
+          sectionDiv.onclick = () => toggleSection(courseCode, section.section);
+
           sectionDiv.innerHTML = `
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" 
-                               id="section_${section.section}" 
-                               ${isSelected ? "checked" : ""}
-                               onchange="toggleSection('${courseCode}', '${
-            section.section
-          }')">
-                        <label class="form-check-label fw-bold" for="section_${
-                          section.section
-                        }">
-                            Section ${section.section}
-                        </label>
+                    <div class="section-header">
+                        <div class="fw-bold">Section ${section.section}</div>
+                        <div class="selection-indicator">
+                            <i class="fas ${
+                              isSelected
+                                ? "fa-check-circle text-success"
+                                : "fa-circle text-muted"
+                            }"></i>
+                        </div>
                     </div>
                     <div class="small text-muted">
                         <div><i class="fas fa-user"></i> ${
@@ -1281,6 +1831,8 @@
       }
 
       async function toggleSection(courseCode, sectionCode) {
+        console.log(`🔧 Toggling section: ${courseCode} - ${sectionCode}`);
+
         if (!selectedCourses[courseCode]) {
           selectedCourses[courseCode] = [];
         }
@@ -1291,15 +1843,15 @@
           if (selectedCourses[courseCode].length === 0) {
             delete selectedCourses[courseCode];
           }
+          console.log(`➖ Removed section ${sectionCode} from ${courseCode}`);
         } else {
           selectedCourses[courseCode].push(sectionCode);
+          console.log(`➕ Added section ${sectionCode} to ${courseCode}`);
         }
 
-        // Update visual state
-        const sectionDiv = document
-          .getElementById(`section_${sectionCode}`)
-          .closest(".section-checkbox");
-        sectionDiv.classList.toggle("selected"); // Update backend
+        console.log(`📋 Current selections:`, selectedCourses);
+
+        // Update backend
         try {
           const response = await fetch("/select-sections", {
             method: "POST",
@@ -1312,37 +1864,80 @@
             }),
           });
           const result = await response.json();
+          console.log(`🔄 Backend response:`, result);
 
-          // If a linked course was automatically updated, sync our local state
-          if (result.linked_course_updated) {
-            // Update the selectedCourses with the complete backend state
+          // If auto-pairing occurred, sync our local state
+          if (result.auto_paired) {
+            console.log(`🔗 Auto-paired courses:`, result.auto_paired);
             selectedCourses = result.selected_courses;
 
-            // Show notification about linked course
-            showNotification(
-              `Automatically selected matching sections for linked course: ${result.linked_course_updated}`,
-              "info"
+            // If courses were auto-paired, assign them to the same elective category
+            const currentCourse = currentCourses.find(
+              (c) => c.code === courseCode
             );
+            if (
+              currentCourse &&
+              currentCourse.is_linked &&
+              result.auto_paired.length > 0
+            ) {
+              const currentAssignment = courseAssignments[courseCode];
+              if (currentAssignment && currentAssignment !== "core") {
+                console.log(
+                  `🏷️ Auto-assigning paired courses to same elective category: ${currentAssignment}`
+                );
+
+                // Assign all auto-paired courses to the same category
+                result.auto_paired.forEach(async (pairedCourseCode) => {
+                  try {
+                    await fetch("/electives/assign-course", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        course_code: pairedCourseCode,
+                        category_name: currentAssignment,
+                      }),
+                    });
+                    console.log(
+                      `✅ Auto-assigned ${pairedCourseCode} to ${currentAssignment}`
+                    );
+                  } catch (error) {
+                    console.error(
+                      `Error auto-assigning ${pairedCourseCode}:`,
+                      error
+                    );
+                  }
+                });
+              }
+            }
           } else {
-            // Update with backend state even if no linking occurred
+            // Update with backend state even if no auto-pairing occurred
             selectedCourses = result.selected_courses;
           }
         } catch (error) {
-          console.error("Error updating sections:", error);
+          console.error("❌ Error updating sections:", error);
+        }
+
+        // Update visual state
+        // Re-render the sections to update the visual indicators
+        if (currentSelectedCourse) {
+          // Refresh the sections display to show updated selection state
+          selectCourse(currentSelectedCourse);
         }
 
         updateSelectedCoursesSummary();
       }
       function updateSelectedCoursesSummary() {
         const container = document.getElementById("selectedCoursesSummary");
-        const generateManualBtn = document.getElementById("generateManualBtn");
+        const generateTimetablesBtn = document.getElementById(
+          "generateTimetablesBtn"
+        );
         const clearSelectionsBtn =
           document.getElementById("clearSelectionsBtn");
 
         if (Object.keys(selectedCourses).length === 0) {
           container.innerHTML =
             '<p class="text-muted text-center">No courses selected yet</p>';
-          generateManualBtn.disabled = true;
+          if (generateTimetablesBtn) generateTimetablesBtn.disabled = true;
           // Hide clear button when no courses selected
           if (clearSelectionsBtn) clearSelectionsBtn.style.display = "none";
           return;
@@ -1365,8 +1960,21 @@
                                 <div class="small">Sections: ${sections.join(
                                   ", "
                                 )}</div>
+                                ${
+                                  course && course.is_linked
+                                    ? `<div class="small text-info"><i class="fas fa-link"></i> Linked course</div>`
+                                    : ""
+                                }
                             </div>
-                            <button class="btn btn-outline-primary btn-sm ms-2" 
+                            <div class="ms-2">
+                                <select class="modern-course-dropdown"
+                                        onchange="handleCourseAssignment('${courseCode}', this.value, this)"
+                                        id="assignment_${courseCode}">
+                                    <option value="core">Core Course</option>
+                                    <option value="add_elective" class="add-elective-option">+ Add Elective</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm ms-2"
                                     onclick="editCourseSelection('${courseCode}')"
                                     title="Edit sections for ${courseCode}">
                                 <i class="fas fa-edit"></i>
@@ -1379,7 +1987,7 @@
         html += `
                 <div class="mt-3 p-2 bg-light rounded">
                     <small class="text-muted">
-                        <i class="fas fa-info-circle"></i> 
+                        <i class="fas fa-info-circle"></i>
                         ${
                           Object.keys(selectedCourses).length
                         } courses, ${totalSections} sections total
@@ -1387,14 +1995,18 @@
                 </div>
             `;
         container.innerHTML = html;
-        generateManualBtn.disabled = false;
+        if (generateTimetablesBtn) generateTimetablesBtn.disabled = false;
         // Show clear button when courses are selected
         if (clearSelectionsBtn)
           clearSelectionsBtn.style.display = "inline-block";
+
+        // Load and update assignment dropdowns
+        loadAvailableCategories();
       }
       async function generateTimetablesManually() {
-        document.getElementById("loading-section").style.display = "block";
-        updateStep(3);
+        // Show custom loading screen instead of basic loading section
+        showTimetableGenerationLoading();
+        updateStep(4);
 
         try {
           const response = await fetch("/generate", {
@@ -1403,7 +2015,8 @@
 
           const result = await response.json();
 
-          document.getElementById("loading-section").style.display = "none";
+          // Hide custom loading screen
+          hideTimetableGenerationLoading();
 
           if (result.success) {
             // Redirect to the dedicated timetable viewer page
@@ -1412,8 +2025,45 @@
             showAlert("warning", result.message);
           }
         } catch (error) {
-          document.getElementById("loading-section").style.display = "none";
+          // Hide custom loading screen
+          hideTimetableGenerationLoading();
           showAlert("danger", `Error generating timetables: ${error.message}`);
+        }
+      }
+
+      function showTimetableGenerationLoading() {
+        // Create and show custom loading screen for timetable generation
+        const loadingHTML = `
+          <div class="initial-loading-screen" id="timetableLoadingScreen">
+            <div class="wrap">
+              <div class="loading-title">🚀 Generating Your Timetables</div>
+              <div class="loading">
+                <div class="bounceball"></div>
+                <div class="text">PROCESSING</div>
+              </div>
+              <div class="loading-subtitle">Creating all possible valid combinations...</div>
+            </div>
+          </div>
+        `;
+
+        document.body.insertAdjacentHTML("beforeend", loadingHTML);
+
+        // Ensure animation starts immediately
+        setTimeout(() => {
+          const screen = document.getElementById("timetableLoadingScreen");
+          if (screen) {
+            screen.style.opacity = "1";
+          }
+        }, 10);
+      }
+
+      function hideTimetableGenerationLoading() {
+        const loadingScreen = document.getElementById("timetableLoadingScreen");
+        if (loadingScreen) {
+          loadingScreen.classList.add("fade-out");
+          setTimeout(() => {
+            loadingScreen.remove();
+          }, 500);
         }
       }
 
@@ -1476,8 +2126,8 @@
 
           <div class="calendar-container" style="display: none;">
             <div class="calendar-header">
-              <h4 class="calendar-title">
-                <i class="fas fa-calendar-week"></i> 
+              <h4
+                <i class="fas fa-calendar-week"></i>
                 <span id="calendar-combination-title">Select a combination above</span>
               </h4>
               <div class="calendar-stats">
@@ -1839,7 +2489,7 @@
                               .join(", ")}
                         </div>
                     </div>
-                    
+
                     <div class="p-3">
                         <h6>Enrolled Courses:</h6>
                         <div class="row">
@@ -1859,7 +2509,7 @@
 
         html += `
                         </div>
-                        
+
                         <h6 class="mt-4">Weekly Schedule:</h6>
                         <div class="timetable-grid">
                             <div class="time-slot">Time</div>
@@ -2098,17 +2748,730 @@
 
       // Add this function to your <script> section
       async function clearSelectedCourses() {
-        await fetch('/clear_roster', { method: 'POST', credentials: 'include' });
+        await fetch("/clear_roster", {
+          method: "POST",
+          credentials: "include",
+        });
         // After clearing, reload the selected courses and update the UI
         await loadSelectedCourses();
         // Optionally, clear the UI state for selected courses/sections
         selectedCourses = {};
         displayCourses();
         // Also clear timetable results if needed
-        document.getElementById('resultsContainer').innerHTML = `<div class="no-results"><i class="fas fa-calendar-alt"></i><h4>No timetables generated yet</h4></div>`;
+        document.getElementById(
+          "resultsContainer"
+        ).innerHTML = `<div class="no-results"><i class="fas fa-calendar-alt"></i><h4>No timetables generated yet</h4></div>`;
       }
 
       // Attach to your clear button (add this to the button element):
+
+      // ========================================
+      // ELECTIVE CATEGORIES FUNCTIONALITY
+      // ========================================
+
+      let allCourses = [];
+
+      function proceedToElectives() {
+        // Show elective categories section
+        document.getElementById("elective-categories-section").style.display =
+          "block";
+        updateStep(3);
+
+        // Load available courses for electives
+        loadElectiveCourses();
+        loadElectiveCategories();
+
+        // Enable generate button
+        const generateBtn = document.getElementById("generateManualBtn");
+        if (generateBtn) {
+          generateBtn.disabled = false;
+        }
+      }
+
+      async function loadElectiveCourses() {
+        try {
+          const response = await fetch("/get_courses");
+          const data = await response.json();
+
+          // Load all available courses
+          const statusResponse = await fetch("/status");
+          const statusData = await statusResponse.json();
+          allCourses = statusData.courses || [];
+
+          displayElectiveCourses();
+        } catch (error) {
+          console.error("Error loading elective courses:", error);
+        }
+      }
+
+      function displayElectiveCourses() {
+        const container = document.getElementById("electiveCoursesList");
+        const searchTerm = document
+          .getElementById("electiveCourseSearch")
+          .value.toLowerCase();
+
+        // Filter out courses that are already in regular selection
+        const availableCourses = allCourses.filter((course) => {
+          const matchesSearch = course.display
+            .toLowerCase()
+            .includes(searchTerm);
+          const notSelected = !selectedCourses[course.code];
+          const notInElectives = !Object.values(electiveCategories).some(
+            (categoryList) => categoryList.includes(course.code)
+          );
+          return matchesSearch && notSelected && notInElectives;
+        });
+
+        if (availableCourses.length === 0) {
+          container.innerHTML =
+            '<p class="text-muted text-center">No available courses</p>';
+          return;
+        }
+
+        container.innerHTML = availableCourses
+          .map(
+            (course) => `
+          <div class="available-course-item" onclick="showCategorySelectionModal('${course.code}')">
+            <div class="fw-bold">${course.code}</div>
+            <div class="text-muted small">${course.title}</div>
+          </div>
+        `
+          )
+          .join("");
+      }
+
+      async function createElectiveCategory() {
+        const categoryName = document
+          .getElementById("newCategoryName")
+          .value.trim();
+
+        if (!categoryName) {
+          showAlert("warning", "Please enter a category name");
+          return;
+        }
+
+        try {
+          const response = await fetch("/electives/create-category", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category_name: categoryName }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            document.getElementById("newCategoryName").value = "";
+            electiveCategories = result.categories;
+            displayElectiveCategories();
+            displayElectiveCourses(); // Refresh course list
+            showAlert(
+              "success",
+              `Category "${categoryName}" created successfully!`
+            );
+          } else {
+            showAlert("danger", result.message);
+          }
+        } catch (error) {
+          showAlert("danger", "Error creating category");
+          console.error("Error:", error);
+        }
+      }
+
+      async function loadElectiveCategories() {
+        try {
+          const response = await fetch("/electives/get-categories");
+          const result = await response.json();
+
+          if (result.success) {
+            electiveCategories = result.categories;
+            displayElectiveCategories();
+          }
+        } catch (error) {
+          console.error("Error loading elective categories:", error);
+        }
+      }
+
+      function displayElectiveCategories() {
+        const container = document.getElementById(
+          "electiveCategoriesContainer"
+        );
+        const noMessage = document.getElementById("noCategoriesMessage");
+
+        if (Object.keys(electiveCategories).length === 0) {
+          noMessage.style.display = "block";
+          return;
+        }
+
+        noMessage.style.display = "none";
+
+        container.innerHTML = Object.entries(electiveCategories)
+          .map(
+            ([categoryName, courses]) => `
+          <div class="elective-category">
+            <div class="elective-category-header">
+              <span><i class="fas fa-folder"></i> ${categoryName}</span>
+              <button class="category-delete-btn" onclick="deleteElectiveCategory('${categoryName}')" title="Delete Category">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+            <div class="elective-courses">
+              ${
+                courses.length === 0
+                  ? '<p class="text-muted small">No courses added yet</p>'
+                  : courses
+                      .map(
+                        (courseCode) => `
+                  <div class="elective-course-item">
+                    <span>${courseCode}</span>
+                    <button class="remove-btn" onclick="removeCourseFromCategory('${categoryName}', '${courseCode}')" title="Remove from category">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                `
+                      )
+                      .join("")
+              }
+            </div>
+          </div>
+        `
+          )
+          .join("");
+      }
+
+      function showCategorySelectionModal(courseCode) {
+        const categories = Object.keys(electiveCategories);
+
+        if (categories.length === 0) {
+          showAlert("warning", "Please create an elective category first");
+          return;
+        }
+
+        const categoryName = prompt(
+          `Select a category for ${courseCode}:\\n\\nAvailable categories:\\n${categories
+            .map((cat, i) => `${i + 1}. ${cat}`)
+            .join("\\n")}\\n\\nEnter the category name:`
+        );
+
+        if (categoryName && categories.includes(categoryName)) {
+          addCourseToCategory(categoryName, courseCode);
+        } else if (categoryName) {
+          showAlert("warning", "Invalid category name");
+        }
+      }
+
+      async function addCourseToCategory(categoryName, courseCode) {
+        try {
+          const response = await fetch("/electives/add-course", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              category_name: categoryName,
+              course_code: courseCode,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            electiveCategories = result.categories;
+            displayElectiveCategories();
+            displayElectiveCourses(); // Refresh course list
+            showAlert("success", result.message);
+          } else {
+            showAlert("danger", result.message);
+          }
+        } catch (error) {
+          showAlert("danger", "Error adding course to category");
+          console.error("Error:", error);
+        }
+      }
+
+      async function removeCourseFromCategory(categoryName, courseCode) {
+        try {
+          const response = await fetch("/electives/remove-course", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              category_name: categoryName,
+              course_code: courseCode,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            electiveCategories = result.categories;
+            displayElectiveCategories();
+            displayElectiveCourses(); // Refresh course list
+            showAlert("success", result.message);
+          } else {
+            showAlert("danger", result.message);
+          }
+        } catch (error) {
+          showAlert("danger", "Error removing course from category");
+          console.error("Error:", error);
+        }
+      }
+
+      async function deleteElectiveCategory(categoryName) {
+        if (
+          !confirm(
+            `Are you sure you want to delete the category "${categoryName}"?`
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const response = await fetch("/electives/delete-category", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category_name: categoryName }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            electiveCategories = result.categories;
+            displayElectiveCategories();
+            displayElectiveCourses(); // Refresh course list
+            showAlert("success", result.message);
+          } else {
+            showAlert("danger", result.message);
+          }
+        } catch (error) {
+          showAlert("danger", "Error deleting category");
+          console.error("Error:", error);
+        }
+      }
+
+      // Add search functionality
+      document.addEventListener("DOMContentLoaded", function () {
+        const electiveCourseSearch = document.getElementById(
+          "electiveCourseSearch"
+        );
+        if (electiveCourseSearch) {
+          electiveCourseSearch.addEventListener(
+            "input",
+            displayElectiveCourses
+          );
+        }
+      });
+
+      // ========================================
+      // MODERN ELECTIVE MANAGEMENT SYSTEM
+      // ========================================
+
+      let availableElectives = []; // Store created electives
+      let currentDropdownElement = null; // Track which dropdown triggered modal
+
+      function generateTimetablesDirectly() {
+        // Simple direct generation - no elective setup
+        generateTimetablesManually();
+      }
+
+      function handleCourseAssignment(courseCode, value, dropdownElement) {
+        if (value === "add_elective") {
+          // Store reference to the dropdown that triggered this
+          currentDropdownElement = dropdownElement;
+
+          // Reset dropdown to previous value temporarily
+          const currentAssignment = courseAssignments[courseCode] || "core";
+          dropdownElement.value = currentAssignment;
+
+          // Show the custom modal
+          showAddElectiveModal();
+        } else {
+          // Normal assignment
+          assignCourseToCategory(courseCode, value);
+        }
+      }
+
+      function showAddElectiveModal() {
+        // Create modal HTML
+        const modalHTML = `
+          <div class="custom-modal-overlay" id="electiveModal">
+            <div class="custom-modal">
+              <div class="custom-modal-header">
+                <h4 class="custom-modal-title">Add New Elective Category</h4>
+              </div>
+              <div class="custom-modal-body">
+                <input type="text"
+                       class="custom-modal-input"
+                       id="electiveNameInput"
+                       placeholder="e.g., NS Elective"
+                       maxlength="50">
+                <div class="custom-modal-error" id="electiveError"></div>
+              </div>
+              <div class="custom-modal-footer">
+                <button class="modal-btn modal-btn-secondary" onclick="closeElectiveModal()">
+                  Cancel
+                </button>
+                <button class="modal-btn modal-btn-primary" onclick="addElectiveCategory()" id="addElectiveBtn">
+                  Add Elective
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Add to page
+        document.body.insertAdjacentHTML("beforeend", modalHTML);
+
+        // Show modal with animation
+        const modal = document.getElementById("electiveModal");
+        const input = document.getElementById("electiveNameInput");
+
+        setTimeout(() => {
+          modal.classList.add("show");
+          input.focus();
+        }, 10);
+
+        // Add keyboard event listeners
+        input.addEventListener("keydown", handleModalKeydown);
+        input.addEventListener("input", validateElectiveInput);
+        modal.addEventListener("click", handleModalBackdropClick);
+      }
+
+      function handleModalKeydown(event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addElectiveCategory();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          closeElectiveModal();
+        }
+      }
+
+      function handleModalBackdropClick(event) {
+        if (event.target.classList.contains("custom-modal-overlay")) {
+          closeElectiveModal();
+        }
+      }
+
+      function validateElectiveInput() {
+        const input = document.getElementById("electiveNameInput");
+        const error = document.getElementById("electiveError");
+        const addBtn = document.getElementById("addElectiveBtn");
+
+        const value = input.value.trim();
+
+        if (value === "") {
+          error.textContent = "Elective name cannot be empty.";
+          error.classList.add("show");
+          addBtn.disabled = true;
+        } else if (value.length > 50) {
+          error.textContent = "Name is too long (max 50 chars).";
+          error.classList.add("show");
+          addBtn.disabled = true;
+        } else if (availableElectives.includes(value)) {
+          error.textContent = "This elective category already exists.";
+          error.classList.add("show");
+          addBtn.disabled = true;
+        } else {
+          error.classList.remove("show");
+          addBtn.disabled = false;
+        }
+      }
+
+      async function addElectiveCategory() {
+        const input = document.getElementById("electiveNameInput");
+        const electiveName = input.value.trim();
+
+        if (!electiveName || electiveName.length > 50) {
+          validateElectiveInput();
+          return;
+        }
+
+        try {
+          // Create category on backend
+          const response = await fetch("/electives/create-category", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category_name: electiveName }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Add to local list
+            availableElectives.push(electiveName);
+
+            // Update all dropdowns to include the new elective
+            updateAllDropdownsWithNewElective(electiveName);
+
+            // Close modal
+            closeElectiveModal();
+
+            // Show success message
+            showAlert(
+              "success",
+              `Elective category "${electiveName}" created successfully!`
+            );
+
+            // Optionally auto-assign to the dropdown that triggered this
+            if (currentDropdownElement) {
+              currentDropdownElement.value = electiveName;
+              const courseCode = currentDropdownElement.id.replace(
+                "assignment_",
+                ""
+              );
+              assignCourseToCategory(courseCode, electiveName);
+            }
+          } else {
+            showAlert("danger", result.message);
+          }
+        } catch (error) {
+          showAlert("danger", "Error creating elective category");
+          console.error("Error:", error);
+        }
+      }
+
+      function updateAllDropdownsWithNewElective(electiveName) {
+        // Find all course assignment dropdowns and add the new elective
+        Object.keys(selectedCourses).forEach((courseCode) => {
+          const dropdown = document.getElementById(`assignment_${courseCode}`);
+          if (dropdown) {
+            // Check if elective already exists
+            const existingOption = Array.from(dropdown.options).find(
+              (opt) => opt.value === electiveName
+            );
+            if (!existingOption) {
+              // Create new option
+              const newOption = document.createElement("option");
+              newOption.value = electiveName;
+              newOption.textContent = electiveName;
+
+              // Insert before the "Add Elective" option
+              const addElectiveOption = dropdown.querySelector(
+                'option[value="add_elective"]'
+              );
+              dropdown.insertBefore(newOption, addElectiveOption);
+            }
+          }
+        });
+      }
+
+      function closeElectiveModal() {
+        const modal = document.getElementById("electiveModal");
+        if (modal) {
+          modal.classList.remove("show");
+          setTimeout(() => {
+            modal.remove();
+          }, 300);
+        }
+        currentDropdownElement = null;
+      }
+
+      // Enhanced loadAvailableCategories to populate dropdowns with existing electives
+      async function loadAvailableCategories() {
+        try {
+          const response = await fetch("/electives/get-assignments");
+          const result = await response.json();
+
+          if (result.success) {
+            electiveCategories = result.available_categories;
+            courseAssignments = result.assignments;
+
+            // Extract just the elective names (excluding "core")
+            availableElectives = electiveCategories.filter(
+              (cat) => cat !== "core"
+            );
+
+            updateAssignmentDropdowns();
+          }
+        } catch (error) {
+          console.error("Error loading categories:", error);
+        }
+      }
+
+      function updateAssignmentDropdowns() {
+        // Update all assignment dropdowns with current categories
+        Object.keys(selectedCourses).forEach((courseCode) => {
+          const dropdown = document.getElementById(`assignment_${courseCode}`);
+          if (dropdown) {
+            const currentValue = courseAssignments[courseCode] || "core";
+
+            // Clear and repopulate options
+            dropdown.innerHTML = "";
+
+            // Add core course option
+            const coreOption = document.createElement("option");
+            coreOption.value = "core";
+            coreOption.textContent = "Core Course";
+            dropdown.appendChild(coreOption);
+
+            // Add elective options
+            availableElectives.forEach((elective) => {
+              const option = document.createElement("option");
+              option.value = elective;
+              option.textContent = elective;
+              dropdown.appendChild(option);
+            });
+
+            // Add "Add Elective" option
+            const addOption = document.createElement("option");
+            addOption.value = "add_elective";
+            addOption.textContent = "+ Add Elective";
+            addOption.className = "add-elective-option";
+            dropdown.appendChild(addOption);
+
+            // Set current assignment
+            dropdown.value = currentValue;
+          }
+        });
+      }
+
+      async function assignCourseToCategory(courseCode, categoryName) {
+        try {
+          console.log(`🎯 Assigning ${courseCode} to ${categoryName}`);
+
+          const response = await fetch("/electives/assign-course", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              course_code: courseCode,
+              category_name: categoryName,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Backend handles paired courses automatically
+            courseAssignments = result.assignments;
+            console.log(`✅ Backend response:`, result.message);
+
+            // Update visual feedback for all affected courses
+            Object.keys(result.assignments).forEach((code) => {
+              if (result.assignments[code] === categoryName) {
+                updateCourseAssignmentVisual(code, categoryName);
+              }
+            });
+
+            // Refresh all dropdowns to show current assignments
+            setTimeout(() => {
+              loadAvailableCategories();
+            }, 200);
+
+            // Show success message from backend
+            showAlert("success", result.message);
+          } else {
+            console.error("Assignment failed:", result.message);
+            showAlert("danger", result.message);
+          }
+        } catch (error) {
+          console.error("Error assigning course:", error);
+          showAlert("danger", "Error assigning course to category");
+        }
+      }
+
+      function updateCourseAssignmentVisual(courseCode, categoryName) {
+        // Find the course item and add visual indicator
+        const courseItems = document.querySelectorAll(".selected-course-item");
+        courseItems.forEach((item) => {
+          const courseName =
+            item.querySelector(".small.text-muted")?.textContent;
+          if (courseName === courseCode) {
+            // Add category badge
+            let badge = item.querySelector(".category-badge");
+            if (!badge) {
+              badge = document.createElement("div");
+              badge.className = "category-badge small";
+              badge.style.cssText =
+                "margin-top: 4px; padding: 2px 6px; background: #e0f2fe; border-radius: 4px; color: #0369a1;";
+              item.querySelector(".flex-grow-1").appendChild(badge);
+            }
+            badge.textContent =
+              categoryName === "core" ? "📚 Core Course" : `🏷️ ${categoryName}`;
+          }
+        });
+      }
+
+      // Enhanced proceedToElectives function
+      function proceedToElectives() {
+        // Instead of showing the old elective categories section,
+        // we'll show a summary and go straight to generation
+        showElectiveAssignmentSummary();
+
+        // Enable generate button
+        const generateBtn = document.getElementById("generateManualBtn");
+        if (generateBtn) {
+          generateBtn.disabled = false;
+        }
+
+        // Update step
+        updateStep(3);
+      }
+
+      function showElectiveAssignmentSummary() {
+        // Create a summary modal or section showing current assignments
+        const assignments = Object.keys(courseAssignments).length;
+        const coreCount = Object.values(courseAssignments).filter(
+          (cat) => cat === "core"
+        ).length;
+        const electiveCount = assignments - coreCount;
+
+        let message = `📋 Course Assignment Summary:\n\n`;
+        message += `✅ ${coreCount} Core Courses\n`;
+        message += `🏷️ ${electiveCount} Elective Assignments\n\n`;
+
+        if (electiveCount > 0) {
+          message += `Your elective assignments:\n`;
+          Object.entries(courseAssignments).forEach(([course, category]) => {
+            if (category !== "core") {
+              message += `• ${course} → ${category}\n`;
+            }
+          });
+        }
+
+        message += `\n🚀 Ready to generate timetables!`;
+
+        showAlert("info", message, 8000);
+      }
+
+      async function createNewElectiveCategory() {
+        const categoryName = document
+          .getElementById("newElectiveCategoryName")
+          .value.trim();
+
+        if (!categoryName) {
+          showAlert("warning", "Please enter a category name");
+          return;
+        }
+
+        try {
+          const response = await fetch("/electives/create-category", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category_name: categoryName }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            document.getElementById("newElectiveCategoryName").value = "";
+
+            // Add to local categories list
+            if (!electiveCategories.includes(categoryName)) {
+              electiveCategories.push(categoryName);
+            }
+
+            // Update all dropdowns to include new category
+            updateAssignmentDropdowns();
+
+            showAlert(
+              "success",
+              `Category "${categoryName}" created! You can now assign courses to it using the dropdowns above.`
+            );
+          } else {
+            showAlert("danger", result.message);
+          }
+        } catch (error) {
+          showAlert("danger", "Error creating category");
+          console.error("Error:", error);
+        }
+      }
     </script>
   </body>
 </html>

@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Online Lunch Order System</title>
+    <style>
+      :root {
+        --bg-color: #f4f7f9;
+        --card-bg: #ffffff;
+        --text-color: #333;
+        --primary-color: #007bff;
+        --primary-hover: #0056b3;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --danger-color: #dc3545;
+        --warning-color: #ffc107;
+        --border-color: #e0e0e0;
+        --shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        --border-radius: 8px;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 0;
+        line-height: 1.6;
+      }
+      .header {
+        background-color: var(--card-bg);
+        padding: 1rem 2rem;
+        box-shadow: var(--shadow);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+      }
+      .admin-panel button {
+        padding: 0.5rem 1rem;
+        border-radius: var(--border-radius);
+        border: 1px solid var(--primary-color);
+        background-color: transparent;
+        color: var(--primary-color);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .admin-panel button:hover {
+        background-color: var(--primary-color);
+        color: white;
+      }
+      .admin-panel #admin-logout-btn {
+        border-color: var(--secondary-color);
+        color: var(--secondary-color);
+      }
+      .admin-panel #admin-logout-btn:hover {
+        background-color: var(--secondary-color);
+        color: white;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 1.5rem auto;
+        padding: 0 1rem;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      @media (min-width: 992px) {
+        .container {
+          grid-template-columns: 350px 1fr;
+        }
+      }
+      .card {
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow);
+        padding: 1.5rem;
+        border: 1px solid var(--border-color);
+      }
+      .card h2,
+      .card h3 {
+        margin-top: 0;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      .form-group {
+        margin-bottom: 1rem;
+        position: relative;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+      }
+      .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        box-sizing: border-box;
+        transition: border-color 0.2s;
+      }
+      .form-group input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+      }
+      /* Custom Dropdown */
+      .custom-dropdown {
+        display: none;
+        position: absolute;
+        border: 1px solid var(--border-color);
+        border-top: none;
+        border-radius: 0 0 var(--border-radius) var(--border-radius);
+        max-height: 150px; /* Approx 4-5 items */
+        overflow-y: auto;
+        background-color: white;
+        width: 100%;
+        z-index: 100;
+      }
+      .custom-dropdown div {
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+      }
+      .custom-dropdown div:hover {
+        background-color: #f0f0f0;
+      }
+      .btn {
+        display: inline-block;
+        width: 100%;
+        padding: 0.75rem;
+        border: none;
+        border-radius: var(--border-radius);
+        color: #fff;
+        background-color: var(--primary-color);
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+        transition: background-color 0.2s;
+      }
+      .btn.btn-secondary {
+        background-color: var(--secondary-color);
+      }
+      .btn:hover {
+        background-color: var(--primary-hover);
+      }
+      .btn.btn-secondary:hover {
+        background-color: #5a6268;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+      }
+      .stat-item {
+        text-align: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: var(--border-radius);
+      }
+      .stat-item .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      .stat-item .label {
+        font-size: 0.9rem;
+        color: var(--secondary-color);
+      }
+      #order-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .order-item {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        gap: 1rem;
+        transition: background-color 0.2s;
+      }
+      .order-item:last-child {
+        border-bottom: none;
+      }
+      .order-item.paid {
+        background-color: #e8f5e9;
+      }
+      .order-details {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .paid-indicator {
+        display: none;
+        width: 20px;
+        height: 20px;
+        background-color: var(--success-color);
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+        text-align: center;
+        line-height: 20px;
+        flex-shrink: 0;
+      }
+      .order-item.paid .paid-indicator {
+        display: block;
+      }
+      .order-name {
+        font-weight: 600;
+      }
+      .order-desc {
+        color: var(--secondary-color);
+        font-size: 0.9rem;
+      }
+      .order-price {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        min-width: 80px;
+        text-align: right;
+      }
+      .order-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .action-btn {
+        padding: 0.4rem 0.8rem;
+        border: none;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        color: #fff;
+        font-size: 0.8rem;
+      }
+      .paid-btn {
+        background-color: var(--success-color);
+      }
+      .unpaid-btn {
+        background-color: var(--warning-color);
+      }
+      .delete-btn {
+        background-color: var(--danger-color);
+      }
+      .edit-btn {
+        background-color: var(--secondary-color);
+      }
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.5s;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s, visibility 0.3s;
+      }
+      .modal-overlay.show {
+        opacity: 1;
+        visibility: visible;
+      }
+      .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: var(--border-radius);
+        width: 90%;
+        max-width: 400px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        transform: translateY(-50px);
+        transition: transform 0.3s;
+      }
+      .modal-overlay.show .modal-content {
+        transform: translateY(0);
+      }
+      .modal-header {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+      }
+      .modal-header h3 {
+        margin: 0;
+      }
+      .modal-body {
+        margin-bottom: 1.5rem;
+      }
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <h1>Lunch Orders</h1>
+      <div class="admin-panel">
+        <button id="admin-login-btn">Admin Login</button>
+        <span id="admin-status" style="display: none">
+          <button id="admin-logout-btn">Logout</button>
+        </span>
+      </div>
+    </header>
+
+    <div class="container">
+      <aside class="sidebar">
+        <div class="card">
+          <h2 id="form-title">Add New Order</h2>
+          <form id="add-order-form">
+            <input type="hidden" id="edit-order-id" />
+            <div class="form-group">
+              <label for="name">Name</label>
+              <input type="text" id="name" required autocomplete="off" />
+              <div class="custom-dropdown" id="name-suggestions"></div>
+            </div>
+            <div class="form-group">
+              <label for="order_description">Order Description</label>
+              <input type="text" id="order_description" required />
+            </div>
+            <div class="form-group">
+              <label for="price">Price</label>
+              <input type="number" id="price" step="1" min="0" required />
+            </div>
+            <button type="submit" class="btn" id="submit-btn">Add Order</button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="cancel-edit-btn"
+              style="display: none; margin-top: 0.5rem"
+            >
+              Cancel Edit
+            </button>
+          </form>
+        </div>
+        <div class="card" style="margin-top: 1.5rem">
+          <h3>Statistics</h3>
+          <div class="stats-grid" id="stats-container">
+            <!-- Stats will be loaded here -->
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <div class="card">
+          <h2>Order List</h2>
+          <ul id="order-list">
+            <!-- Orders will be loaded here -->
+          </ul>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <!-- Generic Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modal-title">Modal Title</h3>
+        </div>
+        <div class="modal-body" id="modal-body">
+          <p>Modal body text goes here.</p>
+        </div>
+        <div class="modal-footer" id="modal-footer">
+          <button class="btn btn-secondary" id="modal-cancel-btn">
+            Cancel
+          </button>
+          <button class="btn" id="modal-confirm-btn">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const addOrderForm = document.getElementById("add-order-form");
+        const orderList = document.getElementById("order-list");
+        const statsContainer = document.getElementById("stats-container");
+        const adminLoginBtn = document.getElementById("admin-login-btn");
+        const adminLogoutBtn = document.getElementById("admin-logout-btn");
+        const adminStatus = document.getElementById("admin-status");
+        const formTitle = document.getElementById("form-title");
+        const submitBtn = document.getElementById("submit-btn");
+        const cancelEditBtn = document.getElementById("cancel-edit-btn");
+        const editOrderIdInput = document.getElementById("edit-order-id");
+
+        // Name dropdown elements
+        const nameInput = document.getElementById("name");
+        const nameSuggestions = document.getElementById("name-suggestions");
+        const nameList = [
+          "Hamayel",
+          "Ali",
+          "Alishba",
+          "Divya",
+          "Haniya",
+          "Marya",
+          "Mustafa",
+          "Azyan",
+          "Sarah",
+          "Khadija Asif",
+          "Wazima",
+          "Kumail",
+          "Khudejah Hussain",
+          "Sidra",
+          "Hassan",
+          "Mahnum",
+          "Ahmed",
+          "Yusra",
+          "Zara",
+          "Khadija Abbas",
+          "Hunfa",
+          "Bareera",
+          "Arshi",
+          "Areesha",
+          "Hassaan",
+          "Maaz",
+          "Abdul Salam",
+          "Shazma",
+          "Maryam",
+          "Zainab",
+          "Other",
+        ];
+
+        // Modal elements
+        const modalOverlay = document.getElementById("modal-overlay");
+        const modalTitle = document.getElementById("modal-title");
+        const modalBody = document.getElementById("modal-body");
+        const modalFooter = document.getElementById("modal-footer");
+        const modalConfirmBtn = document.getElementById("modal-confirm-btn");
+        const modalCancelBtn = document.getElementById("modal-cancel-btn");
+
+        let adminPassword = null;
+        let isAdminLoggedIn = false;
+        let ordersCache = [];
+        let handleEsc; // To hold the escape key handler
+
+        const showToast = (message) => {
+          const toast = document.getElementById("toast");
+          toast.textContent = message;
+          toast.classList.add("show");
+          setTimeout(() => {
+            toast.classList.remove("show");
+          }, 3000);
+        };
+
+        const showModal = ({
+          title,
+          body,
+          confirmText,
+          onConfirm,
+          onCancel,
+        }) => {
+          modalTitle.textContent = title;
+          modalBody.innerHTML = body;
+          modalConfirmBtn.textContent = confirmText;
+
+          modalOverlay.classList.add("show");
+
+          const input = modalBody.querySelector("input");
+          if (input) {
+            setTimeout(() => input.focus(), 100); // Delay focus to ensure visibility
+            input.onkeydown = (e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                modalConfirmBtn.click();
+              }
+            };
+          }
+
+          handleEsc = (e) => {
+            if (e.key === "Escape") {
+              modalCancelBtn.click();
+            }
+          };
+          document.addEventListener("keydown", handleEsc);
+
+          modalConfirmBtn.onclick = () => {
+            onConfirm();
+            hideModal();
+          };
+          modalCancelBtn.onclick = () => {
+            if (onCancel) onCancel();
+            hideModal();
+          };
+          modalOverlay.onclick = (e) => {
+            if (e.target === modalOverlay) {
+              if (onCancel) onCancel();
+              hideModal();
+            }
+          };
+        };
+
+        const hideModal = () => {
+          modalOverlay.classList.remove("show");
+          if (handleEsc) {
+            document.removeEventListener("keydown", handleEsc);
+          }
+        };
+
+        const updateAdminView = () => {
+          if (isAdminLoggedIn) {
+            adminLoginBtn.style.display = "none";
+            adminStatus.style.display = "inline";
+          } else {
+            adminLoginBtn.style.display = "inline";
+            adminStatus.style.display = "none";
+          }
+          // Re-render orders to show/hide controls
+          renderAllOrders(ordersCache);
+        };
+
+        const renderStats = (stats) => {
+          statsContainer.innerHTML = `
+                    <div class="stat-item">
+                        <div class="value">${stats.total_orders}</div>
+                        <div class="label">Total Orders</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${stats.total_amount.toFixed(
+                          0
+                        )}</div>
+                        <div class="label">Total Amount</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${stats.paid_orders}</div>
+                        <div class="label">Paid</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${stats.paid_amount.toFixed(0)}</div>
+                        <div class="label">Paid Amount</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${stats.unpaid_orders}</div>
+                        <div class="label">Unpaid</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${stats.unpaid_amount.toFixed(
+                          0
+                        )}</div>
+                        <div class="label">Unpaid Amount</div>
+                    </div>
+                `;
+        };
+
+        const renderOrder = (order) => {
+          const li = document.createElement("li");
+          li.className = `order-item ${order.paid ? "paid" : ""}`;
+          li.id = `order-${order.order_id}`;
+
+          let actionsHTML = "";
+
+          if (isAdminLoggedIn) {
+            actionsHTML = `
+              <div class="order-actions">
+                  <button class="action-btn edit-btn" data-action="edit" data-id="${
+                    order.order_id
+                  }">Edit</button>
+                  <button class="action-btn ${
+                    order.paid ? "unpaid-btn" : "paid-btn"
+                  }" data-action="toggle-paid" data-id="${
+              order.order_id
+            }" data-paid="${order.paid}">
+                      ${order.paid ? "Mark Unpaid" : "Mark Paid"}
+                  </button>
+                  <button class="action-btn delete-btn" data-action="delete" data-id="${
+                    order.order_id
+                  }">Delete</button>
+              </div>`;
+          } else if (order.is_owner) {
+            actionsHTML = `
+              <div class="order-actions">
+                  <button class="action-btn edit-btn" data-action="edit" data-id="${order.order_id}">Edit</button>
+                  <button class="action-btn delete-btn" data-action="delete" data-id="${order.order_id}">Delete</button>
+              </div>`;
+          }
+
+          li.innerHTML = `
+                    <div class="order-details">
+                        <span class="paid-indicator">✓</span>
+                        <div>
+                          <div class="order-name">${order.name}</div>
+                          <div class="order-desc">${
+                            order.order_description
+                          }</div>
+                        </div>
+                    </div>
+                    <div class="order-price">${order.price.toFixed(0)}</div>
+                    ${actionsHTML}
+                `;
+          return li;
+        };
+
+        const renderAllOrders = (orders) => {
+          orderList.innerHTML = "";
+          orders.forEach((order) => {
+            orderList.appendChild(renderOrder(order));
+          });
+        };
+
+        const fetchAndRenderAll = async () => {
+          try {
+            const response = await fetch("/OLSSS/orders");
+            const result = await response.json();
+            if (result.success) {
+              ordersCache = result.orders;
+              renderAllOrders(result.orders);
+              renderStats(result.statistics);
+            }
+          } catch (error) {
+            console.error("Failed to fetch orders:", error);
+            showToast("Could not load order data.");
+          }
+        };
+
+        const resetForm = () => {
+          addOrderForm.reset();
+          editOrderIdInput.value = "";
+          formTitle.textContent = "Add New Order";
+          submitBtn.textContent = "Add Order";
+          cancelEditBtn.style.display = "none";
+        };
+
+        addOrderForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const name = document.getElementById("name").value;
+          const order_description =
+            document.getElementById("order_description").value;
+          const price = document.getElementById("price").value;
+          const orderId = editOrderIdInput.value;
+
+          const url = orderId ? "/OLSSS/update-order" : "/OLSSS/add-order";
+          const body = {
+            name,
+            order_description,
+            price: parseFloat(price),
+          };
+          if (orderId) {
+            body.order_id = parseInt(orderId);
+            // Only include admin password if user is admin
+            if (isAdminLoggedIn) {
+              body.password = adminPassword;
+            }
+          }
+
+          try {
+            const response = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.detail);
+
+            showToast(result.message || "Action successful!");
+            resetForm();
+          } catch (error) {
+            showToast(`Error: ${error.message}`);
+          }
+        });
+
+        cancelEditBtn.addEventListener("click", resetForm);
+
+        orderList.addEventListener("click", async (e) => {
+          const target = e.target.closest(".action-btn");
+          if (!target) return;
+
+          const action = target.dataset.action;
+          const id = target.dataset.id;
+
+          if (action === "edit") {
+            const order = ordersCache.find((o) => o.order_id == id);
+            if (order) {
+              formTitle.textContent = "Edit Order";
+              submitBtn.textContent = "Update Order";
+              cancelEditBtn.style.display = "block";
+              editOrderIdInput.value = order.order_id;
+              document.getElementById("name").value = order.name;
+              document.getElementById("order_description").value =
+                order.order_description;
+              document.getElementById("price").value = order.price;
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+            return;
+          }
+
+          if (action === "delete") {
+            showModal({
+              title: "Confirm Deletion",
+              body: "<p>Are you sure you want to delete this order? This action cannot be undone.</p>",
+              confirmText: "Delete",
+              onConfirm: async () => {
+                let body = { order_id: parseInt(id) };
+                // Only include admin password if user is admin
+                if (isAdminLoggedIn) {
+                  body.password = adminPassword;
+                }
+                try {
+                  const response = await fetch("/OLSSS/delete-order", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                  });
+                  const result = await response.json();
+                  if (!response.ok) throw new Error(result.detail);
+                  showToast(result.message);
+                } catch (error) {
+                  showToast(`Error: ${error.message}`);
+                }
+              },
+            });
+            return;
+          }
+
+          if (action === "toggle-paid") {
+            if (!isAdminLoggedIn) return;
+            const isPaid = target.dataset.paid === "true";
+            try {
+              const response = await fetch("/OLSSS/mark-paid", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  order_id: parseInt(id),
+                  paid: !isPaid,
+                  password: adminPassword,
+                }),
+              });
+              const result = await response.json();
+              if (!response.ok) throw new Error(result.detail);
+              showToast(result.message);
+            } catch (error) {
+              showToast(`Error: ${error.message}`);
+            }
+          }
+        });
+
+        adminLoginBtn.addEventListener("click", async () => {
+          const passwordInputId = "admin-password-input";
+          showModal({
+            title: "Admin Login",
+            body: `<div class="form-group">
+                        <label for="${passwordInputId}">Password</label>
+                        <input type="password" id="${passwordInputId}" class="form-group input" />
+                       </div>`,
+            confirmText: "Login",
+            onConfirm: async () => {
+              const password = document.getElementById(passwordInputId).value;
+              if (!password) return;
+              try {
+                const response = await fetch("/OLSSS/admin-login", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ password }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.detail);
+
+                adminPassword = password;
+                isAdminLoggedIn = true;
+                showToast("Admin login successful!");
+                updateAdminView();
+              } catch (error) {
+                showToast(`Login failed: ${error.message}`);
+              }
+            },
+          });
+        });
+
+        adminLogoutBtn.addEventListener("click", () => {
+          adminPassword = null;
+          isAdminLoggedIn = false;
+          showToast("Logged out.");
+          updateAdminView();
+        });
+
+        // --- Custom Dropdown Logic ---
+        const populateDropdown = (filter = "") => {
+          nameSuggestions.innerHTML = "";
+          const filteredNames = nameList.filter((name) =>
+            name.toLowerCase().includes(filter.toLowerCase())
+          );
+
+          filteredNames.forEach((name) => {
+            const div = document.createElement("div");
+            div.textContent = name;
+            div.addEventListener("click", () => {
+              nameInput.value = name;
+              nameSuggestions.style.display = "none";
+            });
+            nameSuggestions.appendChild(div);
+          });
+
+          if (filteredNames.length > 0) {
+            nameSuggestions.style.display = "block";
+          } else {
+            nameSuggestions.style.display = "none";
+          }
+        };
+
+        nameInput.addEventListener("input", () => {
+          populateDropdown(nameInput.value);
+        });
+
+        nameInput.addEventListener("focus", () => {
+          populateDropdown(nameInput.value);
+        });
+
+        document.addEventListener("click", (e) => {
+          if (e.target !== nameInput) {
+            nameSuggestions.style.display = "none";
+          }
+        });
+
+        // Server-Sent Events (SSE) for real-time updates
+        const eventSource = new EventSource("/OLSSS/events");
+
+        eventSource.addEventListener("initial_data", (e) => {
+          const data = JSON.parse(e.data);
+          ordersCache = data.orders;
+          renderAllOrders(data.orders);
+          renderStats(data.statistics);
+        });
+
+        eventSource.addEventListener("order_added", (e) => {
+          // Refetch all to get ownership info
+          fetchAndRenderAll();
+        });
+
+        eventSource.addEventListener("order_updated", (e) => {
+          // Refetch all to get ownership info and re-render
+          fetchAndRenderAll();
+        });
+
+        eventSource.addEventListener("order_deleted", (e) => {
+          const data = JSON.parse(e.data);
+          const itemToRemove = document.getElementById(
+            `order-${data.order_id}`
+          );
+          if (itemToRemove) {
+            itemToRemove.remove();
+          }
+          renderStats(data.statistics);
+        });
+
+        eventSource.onerror = (e) => {
+          console.error("EventSource failed:", e);
+          eventSource.close();
+        };
+
+        // fetchAndRenderAll(); // This is no longer needed as SSE initial_data handles it.
+      });
+    </script>
+  </body>
+</html>

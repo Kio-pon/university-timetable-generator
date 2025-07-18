@@ -16,49 +16,42 @@ import json
 import os
 from pathlib import Path
 import io
+import time as time_module
 from typing import List, Dict, Any, Optional
 import tempfile
 import shutil
 import csv
 import uuid
+import asyncio
+from fastapi.responses import StreamingResponse
 
 app = FastAPI(title="University Timetable Generator", version="1.0.0")
 
 # Setup templates
 templates = Jinja2Templates(directory="templates")
 
+# Import OLSSS functionality
+from olsss_main import register_olsss_routes
+
 # Session-based TimetableGenerator management
+session_store = {}  # In-memory dictionary for session data
+SESSION_COOKIE = "session_id"
+
+def get_session_id(session_id: str = None):
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+    return session_id
 
 def get_generator(session_id):
     if session_id not in session_store:
         session_store[session_id] = TimetableGenerator()
     return session_store[session_id]
 
-# Global storage for the current session (in production, use database/session storage)
-session_store = {}  # In-memory dictionary for session data
-SESSION_COOKIE = "session_id"
+# Register OLSSS routes
+register_olsss_routes(app, templates)
 
-def get_session_id(session_id: str = Cookie(None)):
-    if session_id is None:
-        session_id = str(uuid.uuid4())
-    return session_id
-
-def get_user_data(session_id):
-    return session_store.get(session_id, {})
-
-def set_user_data(session_id, data):
-    session_store[session_id] = data
 # Import the file processor function
 from progress_archive.file_processor import process_uploaded_file, extract_section_type
-
-# app = FastAPI(title="University Timetable Generator", version="1.0.0")
-
-# Setup templates
-# templates = Jinja2Templates(directory="templates")
-
-# Global storage for the current session (in production, use database/session storage)
-# current_generator = None
-# temp_data_file = None  # Store temporary file path
 
 class TimetableGenerator:   
     def __init__(self):
@@ -81,6 +74,10 @@ class TimetableGenerator:
         self.section_pairs = {}  # pair_id -> list of (course, section) tuplesGO
         self.pair_lookup = {}    # (course, section) -> pair_id
         self.pair_counter = 0    # for generating unique pair IDs
+        
+        # Elective course categories
+        self.elective_categories = {} # e.g., {"NS Elective": ["BIO 101", "PHY 101"]}
+        self.course_assignments = {} # e.g., {"BIO 101": "NS Elective", "CS 101": "core"}
         
         # 🎯 AUTO-LOAD CSV ON STARTUP
         self.load_embedded_data()
@@ -132,6 +129,10 @@ class TimetableGenerator:
         self.incorrect_pairings = {}
         self.section_suggestions = {}
         
+        # Clear elective categories
+        self.elective_categories = {}
+        self.course_assignments = {}
+        
         # Clear legacy data
         self.section_pairs = {}
         self.pair_lookup = {}
@@ -141,6 +142,9 @@ class TimetableGenerator:
         """Clear only the selected courses roster (keep smart features)"""
         self.selected_courses = {}
         self.valid_combinations = []
+        # Also clear elective categories since they reference courses
+        self.elective_categories = {}
+        self.course_assignments = {}
     
     def _clean_data(self):
         """Clean and standardize the course data"""
@@ -179,6 +183,11 @@ class TimetableGenerator:
         """Convert time string to 24-hour format"""
         try:
             time_str = str(time_str).strip()
+            
+            # Skip if it's NaN, empty, or column headers
+            if time_str.lower() in ['nan', '', 'start time', 'end time', 'start', 'end']:
+                return None
+            
             # Debug: print(f"🔍 Converting time: '{time_str}'")
             
             # Handle AM/PM format
@@ -486,160 +495,151 @@ class TimetableGenerator:
         self.valid_combinations = valid_combinations
         return valid_combinations    
 
-    def _is_valid_combination(self, combination):
-        """Check if a combination of courses is valid (no duplicate courses, no time conflicts, and smart section pairing)"""
-        
-        # Check 1: No multiple sections of the same course
-        seen_courses = set()
-        for course_code, section, course_data in combination:
-            if course_code in seen_courses:
-                # Duplicate course found - invalid combination
-                return False
-            seen_courses.add(course_code)
-        
-        # Check 2: No time conflicts between any sections
-        for i in range(len(combination)):
-            for j in range(i + 1, len(combination)):
-                course1_data = combination[i][2]
-                course2_data = combination[j][2]
-                
-                if self._check_time_conflict(course1_data, course2_data):
-                    return False
-        
-        # Check 3: Smart section pairing validation - THE AI FILTER! 🧠
-        if not self._is_smart_pairing_valid(combination):
-            return False
-        
-        return True
     
-    def format_course_code_for_display(self, course_code: str) -> str:
-        """Convert internal course code (with |) back to display format (with /)"""
-        return course_code.replace('|', '/')
-    
-    def format_course_code_for_internal(self, course_code: str) -> str:
-        """Convert display course code (with /) to internal format (with |)"""
-        return course_code.replace('/', '|')
-
-    def get_unique_courses(self):
-        """Get list of unique courses"""
-        if self.course_data is None:
-            return []
-        return sorted(self.course_data['Course Code'].unique())
-    
-    def get_courses_with_titles(self):
-        """Get list of unique courses with their titles"""
-        if self.course_data is None:
-            return []
-        
-        # Get unique course codes with their titles
-        course_info = []
-        for course_code in sorted(self.course_data['Course Code'].unique()):
-            # Get the first occurrence to extract the title
-            course_row = self.course_data[self.course_data['Course Code'] == course_code].iloc[0]
-            title = course_row.get('Title', 'No Title')
-            course_display = f"{course_code} - {title}"
-            course_info.append({
-                'code': course_code,
-                'title': title,
-                'display': course_display
-            })
-        return course_info
-    
-    def get_course_sections(self, course_code):
-        """Get all sections for a specific course"""
-        if self.course_data is None:
-            return []
-        
-        course_sections = self.course_data[self.course_data['Course Code'] == course_code]
-        sections_info = []
-        
-        for section in course_sections['Section'].unique():
-            section_data = course_sections[course_sections['Section'] == section]
-            
-            # Group by section to handle multiple time slots
-            times = []
-            for _, row in section_data.iterrows():
-                time_info = f"{row['Day']} {row['Start']}-{row['End']}"
-                times.append(time_info)
-            
-            instructor = section_data['Instructor / Sponsor'].iloc[0]
-            title = section_data['Title'].iloc[0]
-            
-            sections_info.append({
-                'section': section,
-                'title': title,
-                'instructor': instructor,
-                'times': times,
-                'data': section_data,
-                'is_paired': self.is_section_paired(course_code, section),
-                'paired_with': self.get_paired_sections(course_code, section)
-            })
-        
-        return sections_info
-    
-    def _check_time_conflict(self, course1_data, course2_data, debug=False):
-        """Check if two courses have time conflicts"""
-        for _, row1 in course1_data.iterrows():
-            for _, row2 in course2_data.iterrows():
-                # Debug: Print the data being compared (optional)
-                if debug:
-                    course1_name = row1.get('Course Code', 'Unknown') + ' ' + row1.get('Section', '')
-                    course2_name = row2.get('Course Code', 'Unknown') + ' ' + row2.get('Section', '')
-                    
-                    print(f"🔍 Checking conflict between:")
-                    print(f"   Course 1: {course1_name}")
-                    print(f"   Days 1: {row1.get('Days_List', [])}")
-                    print(f"   Time 1: {row1.get('Start_24h')} - {row1.get('End_24h')}")
-                    print(f"   Course 2: {course2_name}")
-                    print(f"   Days 2: {row2.get('Days_List', [])}")
-                    print(f"   Time 2: {row2.get('Start_24h')} - {row2.get('End_24h')}")
-                
-                # Check if they share any common days
-                common_days = set(row1['Days_List']) & set(row2['Days_List'])
-                if debug:
-                    print(f"   Common days: {common_days}")
-                
-                if common_days:
-                    # Check time overlap
-                    start1, end1 = row1['Start_24h'], row1['End_24h']
-                    start2, end2 = row2['Start_24h'], row2['End_24h']
-                    
-                    if start1 and end1 and start2 and end2:
-                        # Check for overlap: start1 < end2 and start2 < end1
-                        overlap = start1 < end2 and start2 < end1
-                        if debug:
-                            print(f"   Time overlap check: {start1} < {end2} and {start2} < {end1} = {overlap}")
-                        
-                        if overlap:
-                            if debug:
-                                print(f"   🚨 CONFLICT DETECTED! {course1_name} conflicts with {course2_name}")
-                            return True
-                        else:
-                            if debug:
-                                print(f"   ✅ No time overlap")
-                    else:
-                        if debug:
-                            print(f"   ⚠️ Missing time data: start1={start1}, end1={end1}, start2={start2}, end2={end2}")
-                else:
-                    if debug:
-                        print(f"   ✅ No common days")
-                if debug:
-                    print(f"   ---")
-        
-        if debug:
-            print(f"   ✅ NO CONFLICTS FOUND")
-        return False
-    
-    def generate_combinations(self):
-        """Generate all valid combinations ensuring one section per course"""
+        """Optimized combination generation with smart filtering"""
         if not self.selected_courses:
             return []
         
-        # Create course options ensuring one section per course
+        # Pre-filter incompatible sections before generating combinations
+        filtered_course_options = self._prefilter_course_options()
+        
+        if not filtered_course_options:
+            return []
+        
+        valid_combinations = []
+        total_combinations = 1
+        for options in filtered_course_options:
+            total_combinations *= len(options)
+        
+        print(f"🔍 Checking {total_combinations} combinations...")
+        
+        # Use itertools.product but with early validation
+        combinations_checked = 0
+        for combination in itertools.product(*filtered_course_options):
+            combinations_checked += 1
+            
+            # Progress indicator for large searches
+            if combinations_checked % 1000 == 0:
+                print(f"   Checked {combinations_checked}/{total_combinations}...")
+            
+            # Flatten combination
+            flattened_combination = []
+            for unit in combination:
+                flattened_combination.extend(unit)
+            
+            if self._is_valid_combination_optimized(flattened_combination):
+                valid_combinations.append(flattened_combination)
+                
+                # Optional: Stop after finding N valid combinations
+                if len(valid_combinations) >= 100:  # Limit to first 100 valid combinations
+                    print(f"⚡ Found {len(valid_combinations)} combinations, stopping search...")
+                    break
+        
+        print(f"✅ Found {len(valid_combinations)} valid combinations from {combinations_checked} checked")
+        self.valid_combinations = valid_combinations
+        return valid_combinations
+
+    def _is_valid_combination_optimized(self, combination):
+        """Optimized validation with early exits and caching"""
+        
+        # Check 1: No multiple sections of the same course (fastest check first)
+        seen_courses = set()
+        course_time_slots = []  # Cache time slots for conflict checking
+        
+        for course_code, section, course_data in combination:
+            if course_code in seen_courses:
+                return False  # Early exit on duplicate course
+            seen_courses.add(course_code)
+            
+            # Pre-process time slots once
+            for _, row in course_data.iterrows():
+                if row['Start_24h'] and row['End_24h']:  # Skip invalid times
+                    course_time_slots.append({
+                        'course': f"{course_code} {section}",
+                        'days': set(row['Days_List']),
+                        'start': row['Start_24h'],
+                        'end': row['End_24h']
+                    })
+        
+        # Check 2: Optimized time conflict detection
+        if self._has_time_conflicts_optimized(course_time_slots):
+            return False
+        
+        # Check 3: Smart pairing validation (already optimized)
+        return self._is_smart_pairing_valid(combination)
+
+    def _has_time_conflicts_optimized(self, time_slots):
+        """Optimized conflict detection with early exit"""
+        n = len(time_slots)
+        
+        for i in range(n):
+            for j in range(i + 1, n):
+                slot1, slot2 = time_slots[i], time_slots[j]
+                
+                # Quick day overlap check
+                if not slot1['days'] & slot2['days']:  # No common days
+                    continue
+                    
+                # Time overlap check (only if days overlap)
+                if slot1['start'] < slot2['end'] and slot2['start'] < slot1['end']:
+                    return True  # Conflict found - early exit
+        
+        return False
+
+    def generate_combinations_smart_limit(self, max_combinations=300, max_time_seconds=50):
+        """Generate combinations with smart limits"""
+        start_time = time_module.time()
+        
+        if not self.selected_courses:
+            return []
+        
+        filtered_course_options = self._prefilter_course_options()
+        if not filtered_course_options:
+            return []
+        
+        valid_combinations = []
+        combinations_checked = 0
+        
+        for combination in itertools.product(*filtered_course_options):
+            # Time limit check
+            if time_module.time() - start_time > max_time_seconds:
+                print(f"⏰ Time limit reached ({max_time_seconds}s), stopping search...")
+                break
+            
+            # Combination limit check
+            if len(valid_combinations) >= max_combinations:
+                print(f"🎯 Found {max_combinations} combinations, stopping search...")
+                break
+            
+            combinations_checked += 1
+            
+            flattened_combination = []
+            for unit in combination:
+                flattened_combination.extend(unit)
+            
+            if self._is_valid_combination_optimized(flattened_combination):
+                valid_combinations.append(flattened_combination)
+        
+        print(f"✅ Generated {len(valid_combinations)} combinations in {time_module.time() - start_time:.2f}s")
+        self.valid_combinations = valid_combinations
+        return valid_combinations
+
+    def _prefilter_course_options(self):
+        """
+        Pre-filter course options for combination generation.
+        Now uses course assignments instead of separate elective_categories.
+        """
         course_options = []
         processed_pairs = set()
-        
+
+        # 1. Process core courses (assigned to "core" or not assigned)
+        core_courses = {}
         for course_code, selected_sections in self.selected_courses.items():
+            assignment = self.course_assignments.get(course_code, "core")
+            if assignment == "core":
+                core_courses[course_code] = selected_sections
+
+        for course_code, selected_sections in core_courses.items():
             if not selected_sections:
                 continue
                 
@@ -648,18 +648,15 @@ class TimetableGenerator:
             for section in selected_sections:
                 section_key = (course_code, section)
                 
-                # Skip if this section is part of an already processed pair
                 if section_key in processed_pairs:
                     continue
                 
-                # Get section data
                 section_data = self.course_data[
                     (self.course_data['Course Code'] == course_code) & 
                     (self.course_data['Section'] == section)
                 ]
                 
                 if self.is_section_paired(course_code, section):
-                    # Create atomic unit with all paired sections
                     atomic_unit = [(course_code, section, section_data)]
                     paired_sections = self.get_paired_sections(course_code, section)
                     
@@ -674,108 +671,122 @@ class TimetableGenerator:
                     course_section_options.append(atomic_unit)
                     processed_pairs.add(section_key)
                 else:
-                    # Individual section
                     atomic_unit = [(course_code, section, section_data)]
                     course_section_options.append(atomic_unit)
             
             if course_section_options:
                 course_options.append(course_section_options)
-        
-        # Generate all combinations
-        valid_combinations = []
-        if course_options:
-            for combination in itertools.product(*course_options):
-                # Flatten combination
-                flattened_combination = []
-                for unit in combination:
-                    flattened_combination.extend(unit)
-                
-                if self._is_valid_combination(flattened_combination):
-                    valid_combinations.append(flattened_combination)
-        
-        self.valid_combinations = valid_combinations
-        return valid_combinations    
 
-    def _is_valid_combination(self, combination):
-        """Check if a combination of courses is valid (no duplicate courses, no time conflicts, and smart section pairing)"""
+        # 2. Process elective categories (courses assigned to category names)
+        # Group courses by their assignments, treating paired courses as atomic units
+        elective_groups = {}
+        processed_elective_courses = set()
         
-        # Check 1: No multiple sections of the same course
-        seen_courses = set()
-        for course_code, section, course_data in combination:
-            if course_code in seen_courses:
-                # Duplicate course found - invalid combination
-                return False
-            seen_courses.add(course_code)
-        
-        # Check 2: No time conflicts between any sections
-        for i in range(len(combination)):
-            for j in range(i + 1, len(combination)):
-                course1_data = combination[i][2]
-                course2_data = combination[j][2]
+        for course_code, assignment in self.course_assignments.items():
+            if assignment != "core" and course_code in self.selected_courses and course_code not in processed_elective_courses:
+                if assignment not in elective_groups:
+                    elective_groups[assignment] = []
                 
-                if self._check_time_conflict(course1_data, course2_data):
-                    return False
-        
-        # Check 3: Smart section pairing validation - THE AI FILTER! 🧠
-        if not self._is_smart_pairing_valid(combination):
-            return False
-        
-        return True
-    
-    def format_combination(self, combination):
-        """Format a combination for display"""
-        schedule = {
-            'Monday': [], 'Tuesday': [], 'Wednesday': [], 
-            'Thursday': [], 'Friday': [], 'Saturday': [], 'Sunday': []
-        }
-        
-        courses_info = []
-        
-        for course_code, section, course_data in combination:
-            # Skip header rows (where Course Code = 'Name')
-            course_data_clean = course_data[course_data['Course Code'] != 'Name']
-            
-            if len(course_data_clean) == 0:
+                # Check if this course has a pair
+                paired_courses = [course_code]
+                if course_code in self.course_pairs:
+                    paired_course = self.course_pairs[course_code]
+                    if paired_course in self.selected_courses and self.course_assignments.get(paired_course) == assignment:
+                        paired_courses.append(paired_course)
+                        processed_elective_courses.add(paired_course)
+                
+                elective_groups[assignment].append(paired_courses)
+                processed_elective_courses.add(course_code)
+
+        for category_name, course_groups in elective_groups.items():
+            if not course_groups:
                 continue
+
+            category_choices = []
+            for course_group in course_groups:  # course_group is either [course] or [course, paired_course]
+                group_sections = []
                 
-            course_info = f"{course_code} {section}"
-            title = course_data_clean['Title'].iloc[0]
-            instructor = course_data_clean['Instructor / Sponsor'].iloc[0]
+                # Get all section combinations for this course group
+                group_section_options = []
+                for course_code in course_group:
+                    selected_sections = self.selected_courses.get(course_code, [])
+                    course_section_list = []
+                    
+                    for section in selected_sections:
+                        section_key = (course_code, section)
+                        if section_key in processed_pairs:
+                            continue
+                            
+                        section_data = self.course_data[
+                            (self.course_data['Course Code'] == course_code) & 
+                            (self.course_data['Section'] == section)
+                        ]
+                        
+                        atomic_unit = [(course_code, section, section_data)]
+                        if self.is_section_paired(course_code, section):
+                            paired_sections = self.get_paired_sections(course_code, section)
+                            for paired_course, paired_section in paired_sections:
+                                paired_data = self.course_data[
+                                    (self.course_data['Course Code'] == paired_course) & 
+                                    (self.course_data['Section'] == paired_section)
+                                ]
+                                atomic_unit.append((paired_course, paired_section, paired_data))
+                                processed_pairs.add((paired_course, paired_section))
+                        
+                        course_section_list.append(atomic_unit)
+                        processed_pairs.add(section_key)
+                    
+                    if course_section_list:
+                        group_section_options.append(course_section_list)
+                
+                # For course groups (like BIO 101 + BIO 101L), we need to create valid combinations
+                if len(group_section_options) == 1:
+                    # Single course in group
+                    category_choices.extend(group_section_options[0])
+                elif len(group_section_options) == 2:
+                    # Paired courses - combine their sections appropriately
+                    for sections1 in group_section_options[0]:
+                        for sections2 in group_section_options[1]:
+                            combined_sections = sections1 + sections2
+                            category_choices.append(combined_sections)
             
-            courses_info.append({
-                'course': course_info,
-                'title': title,
-                'instructor': instructor
-            })
-            
-            # Add to schedule
-            for _, row in course_data_clean.iterrows():
-                for day in row['Days_List']:
-                    if day in schedule:  # Only add valid weekdays
-                        time_slot = f"{row['Start']}-{row['End']}"
-                        room = row['Room'] if 'Room' in row else 'TBA'
-                        schedule_item = {
-                            'course': course_code,
-                            'section': section,
-                            'title': title,
-                            'time': time_slot,
-                            'room': room,
-                            'instructor': instructor,
-                            'start_24h': row['Start_24h'],
-                            'end_24h': row['End_24h'],
-                            'start': row['Start'],
-                            'end': row['End']
-                        }
-                        schedule[day].append(schedule_item)
+            if category_choices:
+                course_options.append(category_choices)
         
-        # Sort each day by start time
-        for day in schedule:
-            schedule[day].sort(key=lambda x: x['start_24h'] if x['start_24h'] else time(0, 0))
+        return course_options
+
+    def _build_conflict_matrix(self):
+        """Build a conflict matrix for O(1) conflict lookups"""
+        if hasattr(self, '_conflict_matrix'):
+            return  # Already built
         
-        return {
-            'courses': courses_info,
-            'schedule': schedule
-        }
+        self._conflict_matrix = {}
+        all_sections = []
+        
+        # Collect all section identifiers
+        for course_code, selected_sections in self.selected_courses.items():
+            for section in selected_sections:
+                section_id = f"{course_code}_{section}"
+                all_sections.append(section_id)
+                
+                # Get time data for this section
+                section_data = self.course_data[
+                    (self.course_data['Course Code'] == course_code) & 
+                    (self.course_data['Section'] == section)
+                ]
+                
+                time_slots = []
+                for _, row in section_data.iterrows():
+                    if row.get('Start_24h') and row.get('End_24h'):
+                        time_slots.append({
+                            'days': set(row['Days_List']) if 'Days_List' in row else set(),
+                            'start': row['Start_24h'],
+                            'end': row['End_24h']
+                        })
+                
+                self._conflict_matrix[section_id] = time_slots
+        
+        print(f"🔧 Built conflict matrix for {len(all_sections)} sections")
     
     def auto_detect_course_pairs(self):
         """STEP 1: Auto-detect course pairs using learned algorithms"""
@@ -1035,21 +1046,33 @@ class TimetableGenerator:
     def _is_smart_pairing_valid(self, combination):
         """🧠 AI FILTER: Check if combination has valid section pairings based on training data"""
         
-        # Get all courses in this combination
+        # Early exit if no course pairs exist
+        if not self.course_pairs:
+            return True
+        
+        # Build a set of paired courses for O(1) lookup
+        paired_courses = set(self.course_pairs.keys())
+        
+        # Extract course info once
         courses_in_combo = [(course_code, section) for course_code, section, _ in combination]
         
-        # Check each pair of courses in the combination
-        for i in range(len(courses_in_combo)):
-            for j in range(i + 1, len(courses_in_combo)):
-                course1_code, section1 = courses_in_combo[i]
-                course2_code, section2 = courses_in_combo[j]
+        # Convert to dict for faster lookup
+        course_sections_dict = {course_code: section for course_code, section, _ in combination}
+        
+        # Only check courses that are actually paired
+        for course1_code, section1 in courses_in_combo:
+            if course1_code not in paired_courses:
+                continue
                 
-                # Check if these courses are paired
-                if course1_code in self.course_pairs and self.course_pairs[course1_code] == course2_code:
-                    # This is a paired course! Check if their sections are correctly paired
-                    if not self._are_sections_correctly_paired(course1_code, section1, course2_code, section2):
-                        print(f"🚫 AI FILTER: Rejected {course1_code} {section1} ↔ {course2_code} {section2} (incorrect pairing)")
-                        return False
+            course2_code = self.course_pairs[course1_code]
+            
+            # Use dict lookup instead of loop (more efficient)
+            course2_section = course_sections_dict.get(course2_code)
+            
+            # If paired course is in combination, validate the pairing
+            if course2_section is not None:
+                if not self._are_sections_correctly_paired(course1_code, section1, course2_code, course2_section):
+                    return False
         
         return True
     
@@ -1078,11 +1101,79 @@ class TimetableGenerator:
         # If no training data exists, allow it (fallback to auto-prediction logic)
         return True
 
+    def format_combination(self, combination):
+        """Format a combination for display in the web interface"""
+        formatted_courses = []
+        schedule = {
+            'Monday': [],
+            'Tuesday': [],
+            'Wednesday': [],
+            'Thursday': [],
+            'Friday': [],
+            'Saturday': [],
+            'Sunday': []
+        }
+        
+        for course_code, section, course_data in combination:
+            # Get course title from the first row
+            title = course_data['Title'].iloc[0] if not course_data.empty else "Unknown Title"
+            instructor = course_data['Instructor / Sponsor'].iloc[0] if not course_data.empty else "Unknown Instructor"
+            
+            # Collect all time slots for this course section
+            time_slots = []
+            for _, row in course_data.iterrows():
+                day = row['Day']
+                start_time = row['Start']
+                end_time = row['End']
+                # Try multiple possible column names for location
+                location = row.get('Room', row.get('Location', 'TBA'))
+                
+                time_slots.append({
+                    'day': day,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'location': location
+                })
+                
+                # Add to schedule organized by day
+                # Parse days (handle TTh, MW, etc.)
+                days_list = row.get('Days_List', [])
+                if not days_list:
+                    # Fallback to parsing the day string
+                    days_list = self._parse_days(day)
+                
+                for parsed_day in days_list:
+                    if parsed_day in schedule:
+                        schedule[parsed_day].append({
+                            'course': self.format_course_code_for_display(course_code),
+                            'section': section,
+                            'title': title,
+                            'instructor': instructor,
+                            'room': location,  # This will now use the correct location from above
+                            'start': start_time,
+                            'end': end_time,
+                            'time': f"{start_time} - {end_time}"
+                        })
+            
+            formatted_courses.append({
+                'course_code': self.format_course_code_for_display(course_code),
+                'section': section,
+                'title': title,
+                'instructor': instructor,
+                'time_slots': time_slots
+            })
+        
+        return {
+            'courses': formatted_courses,
+            'total_courses': len(formatted_courses),
+            'schedule': schedule
+        }
+
     def load_embedded_data(self):
         """Load CSV data from the same folder automatically"""
         try:
             # Look for the CSV file in the same directory
-            csv_file_path = "Schedule(Sheet1) (3).csv"
+            csv_file_path = "Courses.csv"
             
             if os.path.exists(csv_file_path):
                 print(f"🔄 Loading embedded CSV: {csv_file_path}")
@@ -1120,6 +1211,77 @@ class TimetableGenerator:
             print(f"❌ Error loading embedded CSV: {e}")
             return False
 
+    def create_elective_category(self, category_name: str):
+        """Creates a new, empty elective category."""
+        if category_name and category_name not in self.elective_categories:
+            self.elective_categories[category_name] = []
+            return True, f"Category '{category_name}' created successfully."
+        return False, f"Category '{category_name}' already exists or is invalid."
+
+    def add_course_to_elective_category(self, category_name: str, course_code: str):
+        """Adds a course to an elective category and removes it from main selection."""
+        if category_name not in self.elective_categories:
+            return False, "Elective category not found."
+        if course_code not in self.elective_categories[category_name]:
+            self.elective_categories[category_name].append(course_code)
+            # Remove from the main selected_courses dict to avoid duplication
+            if course_code in self.selected_courses:
+                del self.selected_courses[course_code]
+            return True, f"Added '{course_code}' to category '{category_name}'."
+        return False, f"'{course_code}' is already in category '{category_name}'."
+
+    def remove_course_from_elective_category(self, category_name: str, course_code: str):
+        """Removes a course from an elective category."""
+        if category_name in self.elective_categories and course_code in self.elective_categories[category_name]:
+            self.elective_categories[category_name].remove(course_code)
+            # If the category is now empty, consider removing it or leaving it
+            return True, f"Removed '{course_code}' from category '{category_name}'."
+        return False, "Course or category not found."
+
+    def delete_elective_category(self, category_name: str):
+        """Deletes an entire elective category."""
+        if category_name in self.elective_categories:
+            # Optional: move courses back to main selection, for now just delete
+            del self.elective_categories[category_name]
+            return True, f"Category '{category_name}' deleted."
+        return False, "Category not found."
+
+    def assign_course_to_category(self, course_code: str, category_name: str):
+        """Assign a course to a specific category (or 'core' for core courses)
+        Also automatically assigns all paired courses to the same category."""
+        if course_code not in self.selected_courses:
+            return False, "Course not found in selected courses"
+        
+        # Assign the main course
+        self.course_assignments[course_code] = category_name
+        assigned_courses = [course_code]
+        
+        # Find and assign paired courses if they exist and are selected
+        # Check if this course has a pair in course_pairs
+        if course_code in self.course_pairs:
+            paired_course_code = self.course_pairs[course_code]
+            
+            # Only assign if the paired course is also selected
+            if paired_course_code in self.selected_courses:
+                self.course_assignments[paired_course_code] = category_name
+                assigned_courses.append(paired_course_code)
+        
+        if len(assigned_courses) > 1:
+            courses_str = ", ".join(assigned_courses)
+            return True, f"Assigned '{courses_str}' to '{category_name}' (paired courses)"
+        else:
+            return True, f"Assigned '{course_code}' to '{category_name}'"
+
+    def get_available_categories(self):
+        """Get list of available categories including 'core'"""
+        categories = ["core"]
+        categories.extend(list(self.elective_categories.keys()))
+        return categories
+
+    def get_course_assignments(self):
+        """Get the current course assignments"""
+        return self.course_assignments
+
 # Initialize global generator
 # current_generator = TimetableGenerator()
 
@@ -1146,7 +1308,9 @@ async def get_status(response: Response, session_id: str = Cookie(None)):
         "smart_features": {
             "course_pairs_detected": len(generator.course_pairs) // 2,
             "section_predictions": sum(len(pairs) for pairs in generator.correct_pairings.values()),
-            "auto_pairing_enabled": len(generator.course_pairs) > 0
+            "auto_pairing_enabled": len(generator.course_pairs) > 0,
+            "elective_categories": len(generator.elective_categories),
+            "elective_courses": sum(len(courses) for courses in generator.elective_categories.values())
         }
     }
     if generator.course_data is not None:
@@ -1222,7 +1386,7 @@ async def generate_timetable(request: Request, response: Response, session_id: s
     session_id = get_session_id(session_id)
     generator = get_generator(session_id)
     # Optionally update selected_courses here if needed
-    generator.valid_combinations = generator.generate_combinations()
+    generator.valid_combinations = generator.generate_combinations_smart_limit()
     response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
     return {"success": True, "count": len(generator.valid_combinations), "timetables": [generator.format_combination(c) for c in generator.valid_combinations]}
 
@@ -1377,6 +1541,93 @@ async def get_course_sections(course_code: str, response: Response, session_id: 
     response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
     return {"sections": sections}
     
+@app.get("/get-results")
+async def get_results(response: Response, session_id: str = Cookie(None)):
+    """Get existing timetable results without regenerating"""
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    
+    if generator.valid_combinations:
+        return {
+            "success": True, 
+            "count": len(generator.valid_combinations), 
+            "timetables": [generator.format_combination(c) for c in generator.valid_combinations]
+        }
+    else:
+        return {"success": False, "count": 0, "timetables": []}
+    
+@app.post("/electives/create-category")
+async def create_elective_category_endpoint(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    data = await request.json()
+    category_name = data.get("category_name")
+    success, message = generator.create_elective_category(category_name)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": success, "message": message, "categories": generator.elective_categories}
+
+@app.post("/electives/add-course")
+async def add_course_to_category_endpoint(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    data = await request.json()
+    category_name = data.get("category_name")
+    course_code = data.get("course_code")
+    success, message = generator.add_course_to_elective_category(category_name, course_code)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": success, "message": message, "categories": generator.elective_categories}
+
+@app.post("/electives/remove-course")
+async def remove_course_from_category_endpoint(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    data = await request.json()
+    category_name = data.get("category_name")
+    course_code = data.get("course_code")
+    success, message = generator.remove_course_from_elective_category(category_name, course_code)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": success, "message": message, "categories": generator.elective_categories}
+
+@app.post("/electives/delete-category")
+async def delete_elective_category_endpoint(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    data = await request.json()
+    category_name = data.get("category_name")
+    success, message = generator.delete_elective_category(category_name)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": success, "message": message, "categories": generator.elective_categories}
+
+@app.get("/electives/get-categories")
+async def get_elective_categories_endpoint(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": True, "categories": generator.elective_categories}
+
+@app.post("/electives/assign-course")
+async def assign_course_to_category_endpoint(request: Request, response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    data = await request.json()
+    course_code = data.get("course_code")
+    category_name = data.get("category_name")
+    success, message = generator.assign_course_to_category(course_code, category_name)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {"success": success, "message": message, "assignments": generator.course_assignments}
+
+@app.get("/electives/get-assignments")
+async def get_course_assignments_endpoint(response: Response, session_id: str = Cookie(None)):
+    session_id = get_session_id(session_id)
+    generator = get_generator(session_id)
+    response.set_cookie(key=SESSION_COOKIE, value=session_id, httponly=True)
+    return {
+        "success": True, 
+        "assignments": generator.course_assignments,
+        "available_categories": generator.get_available_categories()
+    }
+
 if __name__ == "__main__":
     import uvicorn
     import os
@@ -1385,10 +1636,11 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     host = os.environ.get("HOST", "127.0.0.1")
     
-    # In production, host should be 0.0.0.0 to accept external connections
-    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("HEROKU"):
-        host = "0.0.0.0"
-    
+    # Get port from environment variable (for deployment) or use default
+    # port = int(os.environ.get("PORT", 2002))
+    # host = os.environ.get("HOST", "0.0.0.0")
+    # host = os.environ.get("HOST", "192.168.1.2") for sharing on the same network locally running
+ 
     print("🚀 Starting University Timetable Generator with Smart Features...")
     print(f"📍 Server will be available at: http://{host}:{port}")
     if host == "127.0.0.1":
@@ -1399,6 +1651,13 @@ if __name__ == "__main__":
     print("   • Smart section auto-pairing")
     print("   • Real-time compatibility validation")
     print("   • FullCalendar.js modern interface")
+    print("   • Elective course categorization")
+    print("🍽️ OLSSS (Online Lunch Sale & Tally System):")
+    print(f"   • Available at: http://{host}:{port}/OLSSS")
+    print("   • Real-time order management")
+    print("   • Admin panel for payment tracking")
+    print("   • Live updates via Server-Sent Events")
     print("-" * 60)
     
     uvicorn.run(app, host=host, port=port, reload=False)
+
