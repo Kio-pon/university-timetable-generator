@@ -1633,12 +1633,12 @@ if __name__ == "__main__":
     import os
     
     # Get port from environment variable (for deployment) or use default
-    port = int(os.environ.get("PORT", 8000))
-    host = os.environ.get("HOST", "127.0.0.1")
+    # port = int(os.environ.get("PORT", 8000))
+    # host = os.environ.get("HOST", "127.0.0.1")
     
     # Get port from environment variable (for deployment) or use default
-    # port = int(os.environ.get("PORT", 2002))
-    # host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", 2002))
+    host = os.environ.get("HOST", "0.0.0.0")
     # host = os.environ.get("HOST", "192.168.1.2") for sharing on the same network locally running
  
     print("🚀 Starting University Timetable Generator with Smart Features...")
